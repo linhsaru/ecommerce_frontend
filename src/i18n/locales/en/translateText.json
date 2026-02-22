@@ -1,0 +1,28 @@
+{
+  "validate": {},
+  "menu": {
+    "dashboard": "대시보드1",
+    "act": "비식별화 작업2",
+    "actRegister": "비식별화 작업 등록3",
+    "actListTask": "비식별화 작업 목록4",
+    "log": "로그 조회",
+    "auditLog": "감사 로그",
+    "setting": "설정",
+    "settingSystem": "시스템",
+    "settingUser": "사용자",
+    "settingUserRegister": "사용자 등록",
+    "settingUserAddPermission": "권한 추가",
+    "settingBackup": "백업 실행",
+    "settingBackupRunRestore": "복원 실행",
+    "settingBackupUser": "권한 추가",
+    "settingPermission": "권한 목록",
+    "settingPermissionBackup": "백업 목록",
+    "settingPermissionAuthority": "권한",
+    "settingPermissionBackupRestore": "백업 / 복원"
+  },
+  "messages": {
+    "welcome": "Welcome to our website!",
+    "error": "An error occurred. Please try again later."
+  },
+  "colors": ["red", "green", "blue"]
+}
