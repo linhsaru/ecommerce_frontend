@@ -5,28 +5,28 @@
 export const tokenManager = {
   // Get access token
   getAccessToken: () => {
-    return localStorage.getItem('accessToken');
+    return sessionStorage.getItem('accessToken');
   },
 
   // Get refresh token
   getRefreshToken: () => {
-    return localStorage.getItem('refreshToken');
+    return sessionStorage.getItem('refreshToken');
   },
 
   // Set tokens
   setTokens: (accessToken, refreshToken) => {
     if (accessToken) {
-      localStorage.setItem('accessToken', accessToken);
+      sessionStorage.setItem('accessToken', accessToken);
     }
     if (refreshToken) {
-      localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('refreshToken', refreshToken);
     }
   },
 
   // Clear tokens
   clearTokens: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
   },
 
   // Check if user is authenticated

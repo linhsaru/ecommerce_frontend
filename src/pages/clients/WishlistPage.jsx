@@ -7,9 +7,7 @@ import {
 } from 'react-icons/hi2';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
-import PriceDisplay from '../../components/ecommerce/PriceDisplay';
-import StarRating from '../../components/ecommerce/StarRating';
-import ProductCard from '../../components/ecommerce/ProductCard';
+import { PriceDisplay, StarRating, ProductCard } from '../../components/shop';
 import { products } from '../../data/mockData';
 
 const WishlistPage = () => {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { tokenManager } from '../services';
+import { tokenManager, apiService } from '../services';
 
 const useAuthStore = create(
   persist(
@@ -16,32 +16,34 @@ const useAuthStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          // This would typically be an API call
-          // For now, we'll simulate it
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(credentials),
-          });
+          // Call login API
+          const { data: response } = await apiService.post('/auth/login', credentials);
 
-          if (!response.ok) {
-            throw new Error('Login failed');
+          // Some APIs wrap payload inside `data`
+          const payload = response?.data ?? response;
+
+          const accessToken = payload?.accessToken;
+          const refreshToken = payload?.refreshToken;
+          const username = payload?.username;
+          const role = payload?.role;
+
+          if (accessToken) {
+            tokenManager.setTokens(accessToken, refreshToken);
           }
 
-          const data = await response.json();
+          const user = {
+            username: username,
+            role: role,
+          };
 
-          // Set tokens
-          tokenManager.setTokens(data.accessToken, data.refreshToken);
-
-          // Set user data
           set({
-            user: data.user,
+            user,
             isAuthenticated: true,
             isLoading: false,
             error: null,
           });
 
-          return data;
+          return payload;
         } catch (error) {
           set({
             error: error.message,
@@ -55,17 +57,7 @@ const useAuthStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(userData),
-          });
-
-          if (!response.ok) {
-            throw new Error('Registration failed');
-          }
-
-          const data = await response.json();
+          const { data } = await apiService.post('/auth/register', userData);
 
           set({
             user: data.user,
@@ -115,8 +107,28 @@ const useAuthStore = create(
 
       // Initialize auth state from tokens
       initializeAuth: () => {
-        const user = tokenManager.getUserFromToken();
         const isAuthenticated = tokenManager.isAuthenticated();
+
+        if (!isAuthenticated) {
+          set({
+            user: null,
+            isAuthenticated: false,
+          });
+          return;
+        }
+
+        const tokenUser = tokenManager.getUserFromToken();
+
+        const user = {
+          username:
+            tokenUser?.username ||
+            tokenUser?.userName ||
+            tokenUser?.unique_name ||
+            tokenUser?.email ||
+            '',
+          role: tokenUser?.role,
+          ...tokenUser,
+        };
 
         set({
           user,

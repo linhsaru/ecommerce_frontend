@@ -91,7 +91,7 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Shop */}
+          {/* Shop - PC Components */}
           <div>
             <h4 className="text-body-sm font-semibold text-neutral-900 mb-4">Shop</h4>
             <ul className="space-y-2.5">

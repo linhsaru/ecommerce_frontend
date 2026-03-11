@@ -9,8 +9,7 @@ import {
   HiOutlineArrowPath,
 } from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
-import QuantitySelector from '../../components/ecommerce/QuantitySelector';
-import ProductCard from '../../components/ecommerce/ProductCard';
+import { QuantitySelector, ProductCard } from '../../components/shop';
 import { products } from '../../data/mockData';
 import { useState } from 'react';
 
@@ -19,7 +18,7 @@ const CartPage = () => {
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
 
-  const shipping = total >= 99 ? 0 : 9.99;
+  const shipping = total >= 199 ? 0 : 9.99;
   const tax = total * 0.08;
   const discount = promoApplied ? total * 0.1 : 0;
   const grandTotal = total + shipping + tax - discount;
@@ -27,7 +26,7 @@ const CartPage = () => {
   const suggestedProducts = products.filter((p) => !items.find((i) => i.id === p.id)).slice(0, 4);
 
   const handleApplyPromo = () => {
-    if (promoCode.toUpperCase() === 'WINTER50' || promoCode.toUpperCase() === 'SAVE10') {
+    if (['BUILD15', 'FREESHIP', 'SAVE10'].includes(promoCode.toUpperCase())) {
       setPromoApplied(true);
     }
   };

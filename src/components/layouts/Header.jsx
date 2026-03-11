@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
-import Button from '../ui/Button';
+import Button from '../common/Button';
 
 const Header = () => {
   const { user, logout } = useAuthStore();

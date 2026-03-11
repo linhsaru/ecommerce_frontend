@@ -7,17 +7,26 @@ import {
   HiOutlineUser,
   HiOutlineBars3,
   HiOutlineXMark,
+  HiOutlineArrowRightOnRectangle,
 } from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
+import { useAuthStore } from '../../store/authStore';
+import { useTranslation } from '../../context/LanguageContext';
+import LanguageSwitcher from '../LanguageSwitcher';
 
 const Navbar = () => {
+  const { t } = useTranslation();
+  const { user, logout } = useAuthStore();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const cartItemCount = useCartStore((state) => state.itemCount);
   const wishlistItems = useWishlistStore((state) => state.items);
+
+  const displayName =
+    user?.username || '';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,25 +41,20 @@ const Navbar = () => {
   }, [location]);
 
   const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Shop', path: '/products' },
-    { name: 'Categories', path: '/products?view=categories' },
-    { name: 'Deals', path: '/products?filter=deals' },
+    { nameKey: 'home', path: '/' },
+    { nameKey: 'shop', path: '/products' },
+    { nameKey: 'news', path: '/news' },
+    { nameKey: 'buildpc', path: '/build-pc' }
   ];
 
   return (
     <>
-      {/* Top bar */}
-      <div className="bg-neutral-900 text-white text-caption text-center py-2 px-4">
-        <p>🎉 Free shipping on orders over $99 — <Link to="/products" className="underline font-medium hover:text-accent-300 transition-colors">Shop Now</Link></p>
-      </div>
 
       {/* Main navbar */}
-      <nav className={`sticky top-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-white/95 backdrop-blur-xl shadow-soft-md border-b border-neutral-100/50'
-          : 'bg-white border-b border-neutral-100'
-      }`}>
+      <nav className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled
+        ? 'bg-white/95 backdrop-blur-xl shadow-soft-md border-b border-neutral-100/50'
+        : 'bg-white border-b border-neutral-100'
+        }`}>
         <div className="container-custom">
           <div className="flex items-center justify-between h-16 md:h-18">
             {/* Left: Mobile menu + Logo */}
@@ -80,7 +84,7 @@ const Navbar = () => {
             <div className="hidden md:flex items-center gap-1">
               {navLinks.map((link) => (
                 <Link
-                  key={link.name}
+                  key={link.nameKey}
                   to={link.path}
                   className={`px-4 py-2 rounded-xl text-body-sm font-medium transition-all duration-200
                     ${location.pathname === link.path
@@ -88,7 +92,7 @@ const Navbar = () => {
                       : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50'
                     }`}
                 >
-                  {link.name}
+                  {t(link.nameKey)}
                 </Link>
               ))}
             </div>
@@ -130,12 +134,40 @@ const Navbar = () => {
               </Link>
 
               {/* User */}
-              <Link
-                to="/account"
-                className="p-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
-              >
-                <HiOutlineUser className="w-5 h-5" />
-              </Link>
+              {user ? (
+                <div className="flex items-center">
+                  <Link
+                    to="/account"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+                  >
+                    <HiOutlineUser className="w-5 h-5" />
+                    <span className="hidden sm:inline text-body-sm font-medium">
+                      {`Hello ${displayName}`}
+                    </span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="hidden sm:inline-flex items-center p-2.5 rounded-xl text-neutral-600 hover:text-danger-600 hover:bg-danger-50 transition-all duration-200"
+                    title={t('logout')}
+                  >
+                    <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+                >
+                  <HiOutlineUser className="w-5 h-5" />
+                  <span className="hidden sm:inline text-body-sm font-medium">
+                    {t('login')}
+                  </span>
+                </Link>
+              )}
+
+              {/* Language Switcher */}
+              <LanguageSwitcher />
             </div>
           </div>
         </div>
@@ -147,7 +179,7 @@ const Navbar = () => {
               <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Search for products, brands, categories..."
+                placeholder={t('search_placeholder')}
                 className="input pl-12 pr-4 py-3 bg-neutral-50 border-neutral-200 rounded-2xl"
                 autoFocus={isSearchOpen}
               />
@@ -160,7 +192,7 @@ const Navbar = () => {
           <div className="container-custom pb-4 space-y-1">
             {navLinks.map((link) => (
               <Link
-                key={link.name}
+                key={link.nameKey}
                 to={link.path}
                 className={`block px-4 py-3 rounded-xl text-body-sm font-medium transition-all duration-200
                   ${location.pathname === link.path
@@ -168,16 +200,36 @@ const Navbar = () => {
                     : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50'
                   }`}
               >
-                {link.name}
+                {t(link.nameKey)}
               </Link>
             ))}
             <div className="divider my-2" />
-            <Link to="/login" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50">
-              Sign In
-            </Link>
-            <Link to="/register" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-primary-600 hover:bg-primary-50">
-              Create Account
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  to="/account"
+                  className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50"
+                >
+                  Hello {displayName || t('profile')}
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="mt-1 w-full text-left px-2 py-3 rounded-xl text-body-sm font-medium text-danger-600 hover:bg-danger-50 flex items-center gap-2"
+                >
+                  <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50">
+                  {t('login')}
+                </Link>
+                <Link to="/register" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-primary-600 hover:bg-primary-50">
+                  {t('create_account')}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
