@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { tokenManager } from '../services';
+import { tokenManager, apiService } from '../services';
 
 const useAuthStore = create(
   persist(
@@ -18,17 +18,7 @@ const useAuthStore = create(
         try {
           // This would typically be an API call
           // For now, we'll simulate it
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(credentials),
-          });
-
-          if (!response.ok) {
-            throw new Error('Login failed');
-          }
-
-          const data = await response.json();
+          const { data } = await apiService.post('/auth/login', credentials);
 
           // Set tokens
           tokenManager.setTokens(data.accessToken, data.refreshToken);
@@ -55,17 +45,7 @@ const useAuthStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(userData),
-          });
-
-          if (!response.ok) {
-            throw new Error('Registration failed');
-          }
-
-          const data = await response.json();
+          const { data } = await apiService.post('/auth/register', userData);
 
           set({
             user: data.user,

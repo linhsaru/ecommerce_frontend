@@ -16,7 +16,7 @@ const handleTokenExpired = async (accessToken) => {
   const timeLeft = exp * 1000 - currentTime;
   if (!isToken) {
     expiredTimer = window.setTimeout(() => {
-      localStorage.removeItem('userSession');
+      sessionStorage.removeItem('userSession');
     }, timeLeft);
     isToken = true;
   }
@@ -24,7 +24,7 @@ const handleTokenExpired = async (accessToken) => {
 
 apiConfig.interceptors.request.use(
   async (config) => {
-    const userSession = localStorage.getItem('userSession');
+    const userSession = sessionStorage.getItem('userSession');
     if (userSession) {
       handleTokenExpired(JSON.parse(userSession).accessToken);
       config.headers.Authorization = `Bearer ${JSON.parse(userSession).accessToken}`;

@@ -2,7 +2,7 @@ import { useForm } from 'react-hook-form';
 import TextField from '../../components/form/TextField';
 import loginFormRules from '../../forms/formRules/loginFormRules';
 import { useNavigate } from 'react-router-dom';
-import { API } from '../../api/axiosConfig';
+import { apiService } from '../../services/api';
 
 const Login = () => {
   const navigation = useNavigate();
@@ -19,14 +19,15 @@ const Login = () => {
         roleName: 'ADMIN',
         userName: 'sysadmin',
       };
-      const dataSubmit = await API.post('auth/signIn', {
-        username: 'sysadmin',
-        password: 'Admin@123',
+      const { data: dataSubmit } = await apiService.post('auth/signIn', {
+        username: data.username,
+        password: data.password,
       });
-      localStorage.setItem('userSession', JSON.stringify(dataReponsiveSignin));
+      sessionStorage.setItem('userSession', JSON.stringify(dataSubmit));
       navigation('/');
     } catch (error) {
-      console.log(error);
+      console.error("Login Error: ", error);
+      alert(error.message || "Failed to login");
     }
   };
 
