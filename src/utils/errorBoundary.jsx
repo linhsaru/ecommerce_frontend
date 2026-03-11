@@ -61,7 +61,7 @@ export const globalErrorHandler = {
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       url: window.location.href,
-      userId: localStorage.getItem('userId'), // If you store user ID
+      userId: sessionStorage.getItem('userId'), // If you store user ID
       context,
     };
 

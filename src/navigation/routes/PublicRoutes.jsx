@@ -2,6 +2,7 @@
 import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
 import MainLayout from '../../components/layouts/MainLayout';
+import BuildPCPage from '../../pages/clients/BuildPCPage';
 
 const HomePage = lazy(() => import('../../pages/clients/HomePage'));
 const ProductListingPage = lazy(() => import('../../pages/clients/ProductListingPage'));
@@ -66,6 +67,10 @@ const publicRoutes = [
         path: '/news',
         element: <TechNewsPage />,
       },
+      {
+        path: '/build-pc',
+        element: <BuildPCPage />
+      }
     ],
   },
 ];

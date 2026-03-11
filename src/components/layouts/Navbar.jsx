@@ -7,6 +7,7 @@ import {
   HiOutlineUser,
   HiOutlineBars3,
   HiOutlineXMark,
+  HiOutlineArrowRightOnRectangle,
 } from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
@@ -16,13 +17,16 @@ import LanguageSwitcher from '../LanguageSwitcher';
 
 const Navbar = () => {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   const cartItemCount = useCartStore((state) => state.itemCount);
   const wishlistItems = useWishlistStore((state) => state.items);
+
+  const displayName =
+    user?.username || '';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,7 +43,8 @@ const Navbar = () => {
   const navLinks = [
     { nameKey: 'home', path: '/' },
     { nameKey: 'shop', path: '/products' },
-    { nameKey: 'news', path: '/news' }
+    { nameKey: 'news', path: '/news' },
+    { nameKey: 'buildpc', path: '/build-pc' }
   ];
 
   return (
@@ -129,15 +134,37 @@ const Navbar = () => {
               </Link>
 
               {/* User */}
-              <Link
-                to={user ? '/account' : '/login'}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
-              >
-                <HiOutlineUser className="w-5 h-5" />
-                <span className="hidden sm:inline text-body-sm font-medium">
-                  {user ? `Hello ${user.username || user.fullName || user.firstName || user.email?.split('@')[0] || ''}` : t('login')}
-                </span>
-              </Link>
+              {user ? (
+                <div className="flex items-center">
+                  <Link
+                    to="/account"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+                  >
+                    <HiOutlineUser className="w-5 h-5" />
+                    <span className="hidden sm:inline text-body-sm font-medium">
+                      {`Hello ${displayName}`}
+                    </span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="hidden sm:inline-flex items-center p-2.5 rounded-xl text-neutral-600 hover:text-danger-600 hover:bg-danger-50 transition-all duration-200"
+                    title={t('logout')}
+                  >
+                    <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+                >
+                  <HiOutlineUser className="w-5 h-5" />
+                  <span className="hidden sm:inline text-body-sm font-medium">
+                    {t('login')}
+                  </span>
+                </Link>
+              )}
 
               {/* Language Switcher */}
               <LanguageSwitcher />
@@ -178,9 +205,21 @@ const Navbar = () => {
             ))}
             <div className="divider my-2" />
             {user ? (
-              <Link to="/account" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50">
-                Hello {user.username || user.fullName || user.firstName || user.email?.split('@')[0] || t('profile')}
-              </Link>
+              <>
+                <Link
+                  to="/account"
+                  className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50"
+                >
+                  Hello {displayName || t('profile')}
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="mt-1 w-full text-left px-2 py-3 rounded-xl text-body-sm font-medium text-danger-600 hover:bg-danger-50 flex items-center gap-2"
+                >
+                  <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+                </button>
+              </>
             ) : (
               <>
                 <Link to="/login" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50">

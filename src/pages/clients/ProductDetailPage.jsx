@@ -13,10 +13,7 @@ import {
   HiStar,
   HiCheckCircle,
 } from 'react-icons/hi2';
-import StarRating from '../../components/ecommerce/StarRating';
-import PriceDisplay from '../../components/ecommerce/PriceDisplay';
-import QuantitySelector from '../../components/ecommerce/QuantitySelector';
-import ProductCard from '../../components/ecommerce/ProductCard';
+import { StarRating, PriceDisplay, QuantitySelector, ProductCard } from '../../components/shop';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { products, reviews as allReviews } from '../../data/mockData';
