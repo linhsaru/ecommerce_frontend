@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 import MainLayout from '../../components/layouts/MainLayout';
 
 const HomePage = lazy(() => import('../../pages/clients/HomePage'));
@@ -11,6 +12,11 @@ const WishlistPage = lazy(() => import('../../pages/clients/WishlistPage'));
 const AccountPage = lazy(() => import('../../pages/clients/AccountPage'));
 const LoginPage = lazy(() => import('../../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../../pages/auth/RegisterPage'));
+const TechNewsPage = lazy(() => import('../../pages/clients/TechNewsPage'));
+
+export const PublicRoute = ({ isAuthenticated, children }) => {
+  return isAuthenticated ? <Navigate to="/app" /> : children;
+};
 
 const publicRoutes = [
   {
@@ -55,6 +61,10 @@ const publicRoutes = [
       {
         path: '/register',
         element: <RegisterPage />,
+      },
+      {
+        path: '/news',
+        element: <TechNewsPage />,
       },
     ],
   },

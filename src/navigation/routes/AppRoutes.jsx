@@ -2,9 +2,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import publicRoutes from './PublicRoutes';
-import privateRoutes from './PrivateRoutes';
-
-const PrivateRoute = lazy(() => import('../../components/routes/PrivateRoute'));
+import privateRoutes, { PrivateRoute } from './PrivateRoutes';
 const NotFoundPage = lazy(() => import('../../pages/errors/NotFoundPage'));
 
 const LoadingFallback = () => (
