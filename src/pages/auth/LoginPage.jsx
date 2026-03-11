@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../../context/LanguageContext';
@@ -9,14 +9,24 @@ import {
   HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import { useAuthStore } from '../../store/authStore';
+import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
 
 const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { login, isLoading, error } = useAuthStore();
+  const { login, isLoading, isAuthenticated } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [showToast, setShowToast] = useState(false);
+
+  // Nếu đã đăng nhập thì không cho vào trang login, tự redirect về home
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,12 +34,20 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoginError('');
+    setShowToast(false);
     try {
-      await login({ email: formData.email, password: formData.password });
-      navigate('/');
+      const payload = await login({ email: formData.email, password: formData.password });
+
+      const role = payload?.role || '';
+      if (role === 'RoleAdmin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
-      console.error(err);
-      alert('Login failed: ' + (err.message || err));
+      setLoginError(err.message || 'Login failed. Please try again.');
+      setShowToast(true);
     }
   };
 
@@ -50,8 +68,15 @@ const LoginPage = () => {
           <p className="text-body-md text-neutral-500">{t('sign_in_to_continue')}</p>
         </div>
 
-        {/* Form Card */}
-        <div className="card p-8">
+        {/* Sign In Form Card */}
+        <div className="card p-8 relative">
+          <ToastNotification
+            message={loginError}
+            status="error"
+            isVisible={showToast}
+            onClose={() => setShowToast(false)}
+          />
+
           {/* Social Login */}
           <div className="space-y-3 mb-6">
             <button className="btn-secondary w-full justify-center">

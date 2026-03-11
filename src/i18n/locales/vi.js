@@ -125,5 +125,7 @@ export default {
   secure_payment: 'Thanh toán an toàn',
   easy_return: 'Dễ dàng trả hàng',
   tech_support: 'Hỗ trợ kỹ thuật',
+  buildpc: 'Xây dựng cấu hình',
+  please_select_component: 'Vui lòng chọn cấu hình',
 
 };

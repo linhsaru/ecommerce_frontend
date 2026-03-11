@@ -16,22 +16,34 @@ const useAuthStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          // This would typically be an API call
-          // For now, we'll simulate it
-          const { data } = await apiService.post('/auth/login', credentials);
+          // Call login API
+          const { data: response } = await apiService.post('/auth/login', credentials);
 
-          // Set tokens
-          tokenManager.setTokens(data.accessToken, data.refreshToken);
+          // Some APIs wrap payload inside `data`
+          const payload = response?.data ?? response;
 
-          // Set user data
+          const accessToken = payload?.accessToken;
+          const refreshToken = payload?.refreshToken;
+          const username = payload?.username;
+          const role = payload?.role;
+
+          if (accessToken) {
+            tokenManager.setTokens(accessToken, refreshToken);
+          }
+
+          const user = {
+            username: username,
+            role: role,
+          };
+
           set({
-            user: data.user,
+            user,
             isAuthenticated: true,
             isLoading: false,
             error: null,
           });
 
-          return data;
+          return payload;
         } catch (error) {
           set({
             error: error.message,
@@ -95,8 +107,28 @@ const useAuthStore = create(
 
       // Initialize auth state from tokens
       initializeAuth: () => {
-        const user = tokenManager.getUserFromToken();
         const isAuthenticated = tokenManager.isAuthenticated();
+
+        if (!isAuthenticated) {
+          set({
+            user: null,
+            isAuthenticated: false,
+          });
+          return;
+        }
+
+        const tokenUser = tokenManager.getUserFromToken();
+
+        const user = {
+          username:
+            tokenUser?.username ||
+            tokenUser?.userName ||
+            tokenUser?.unique_name ||
+            tokenUser?.email ||
+            '',
+          role: tokenUser?.role,
+          ...tokenUser,
+        };
 
         set({
           user,
