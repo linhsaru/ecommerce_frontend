@@ -121,11 +121,7 @@ const useAuthStore = create(
 
         const user = {
           username:
-            tokenUser?.username ||
-            tokenUser?.userName ||
-            tokenUser?.unique_name ||
-            tokenUser?.email ||
-            '',
+            tokenUser?.username || '',
           role: tokenUser?.role,
           ...tokenUser,
         };

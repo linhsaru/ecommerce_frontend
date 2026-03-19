@@ -28,8 +28,8 @@ const Modal = ({ isOpen, onClose, children }) => {
         onClick={handleOutsideClick}
       >
         <div
-          className={`transform rounded bg-white p-6 shadow-lg transition-transform duration-300 ${
-            isOpen ? 'translate-y-0' : 'translate-y-full'
+          className={`transform transition-all duration-300 ${
+            isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-8'
           }`}
           onClick={(e) => e.stopPropagation()}
         >

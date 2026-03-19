@@ -1,8 +1,7 @@
-/* eslint-disable react-refresh/only-export-components */
-import { useContext, lazy } from 'react';
+import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
-import { NavigationContext } from '../context/NavigationContext';
-import MainLayout from '../../components/layouts/MainLayout';
+import { useAuthStore } from '../../store/authStore';
+import AdminLayout from '../../components/layouts/AdminLayout';
 
 const UserManagementPage = lazy(
   () => import('../../pages/admins/users/UserManagementPage')
@@ -10,25 +9,87 @@ const UserManagementPage = lazy(
 const DashboardPage = lazy(
   () => import('../../pages/admins/dashboards/DashboardPage')
 );
+const ProductManagementPage = lazy(
+  () => import('../../pages/admins/products/ProductManagementPage')
+);
+const InventoryManagementPage = lazy(
+  () => import('../../pages/admins/inventory/InventoryManagementPage')
+);
+const AnalyticsDashboardPage = lazy(
+  () => import('../../pages/admins/analytics/AnalyticsDashboardPage')
+);
+const PromotionsPage = lazy(
+  () => import('../../pages/admins/promotions/PromotionsPage')
+);
+const CampaignManagementPage = lazy(
+  () => import('../../pages/admins/promotions/CampaignManagementPage')
+);
+const OrdersManagementPage = lazy(
+  () => import('../../pages/admins/orders/OrdersManagementPage')
+);
+const CategoryManagementPage = lazy(
+  () => import('../../pages/admins/products/CategoryManagementPage')
+);
 
 export const PrivateRoute = ({ children }) => {
-  const { isAuthenticated } = useContext(NavigationContext);
+  const { isAuthenticated } = useAuthStore();
+  
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
-  return <MainLayout>{children}</MainLayout>;
+
+  // NOTE: You can also check for user?.role here to prevent non-admins 
+  // from accessing the admin route, for example:
+  // if (user?.role !== 'RoleAdmin') return <Navigate to="/" replace />
+  
+  return <AdminLayout>{children}</AdminLayout>;
 };
 
 const privateRoutes = [
   {
-    path: 'app',
+    path: 'admin',
     element: <DashboardPage />,
-    access: ['ADMIN'],
+    access: ['RoleAdmin'],
   },
   {
-    path: 'users',
+    path: 'admin/users',
     element: <UserManagementPage />,
-    access: ['ADMIN', 'USER'],
+    access: ['RoleAdmin', 'RoleUser'],
+  },
+  {
+    path: 'admin/categories',
+    element: <CategoryManagementPage />,
+    access: ['RoleAdmin'],
+  },
+  {
+    path: 'admin/products',
+    element: <ProductManagementPage />,
+    access: ['RoleAdmin'],
+  },
+  {
+    path: 'admin/inventory',
+    element: <InventoryManagementPage />,
+    access: ['RoleAdmin'],
+  },
+  {
+    path: 'admin/promotions',
+    element: <PromotionsPage />,
+    access: ['RoleAdmin'],
+  },
+  {
+    path: 'admin/campaigns',
+    element: <CampaignManagementPage />,
+    access: ['RoleAdmin'],
+  },
+  {
+    path: 'admin/analytics',
+    element: <AnalyticsDashboardPage />,
+    access: ['RoleAdmin'],
+  },
+  {
+    path: 'admin/orders',
+    element: <OrdersManagementPage />,
+    access: ['RoleAdmin'],
   },
 ];
 

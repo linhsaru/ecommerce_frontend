@@ -1,249 +1,233 @@
-# ECommerce Frontend Base
+# E-commerce Frontend
 
-A comprehensive React-based ecommerce frontend with all essential base components, utilities, and infrastructure for building modern web applications.
+Ứng dụng frontend cho cửa hàng bán linh kiện PC & công nghệ, được xây dựng bằng React + Vite.
 
-## 🚀 Features
+---
 
-### ✅ Base API
-- **Axios-based API service** with automatic JWT token attachment
-- **Request/Response interceptors** for authentication and error handling
-- **Token management** with automatic refresh capabilities
-- **Error handling** with user-friendly messages
-
-### ✅ Data Fetching & Caching
-- **React Query (TanStack Query)** for server state management
-- **Automatic caching** and background refetching
-- **Optimistic updates** and error recovery
-- **Custom hooks** for API operations (GET, POST, PUT, DELETE, UPLOAD)
-
-### ✅ State Management
-- **Zustand stores** for global state management
-- **Auth Store**: User authentication, login/logout, token management
-- **Cart Store**: Shopping cart functionality with persistence
-- **UI Store**: Modals, notifications, loading states, theme management
-
-### ✅ UI Components
-- **Button**: Configurable button with loading states and variants
-- **Input**: Form input with validation and error display
-- **Modal**: Accessible modal dialogs with overlay
-- **Loading**: Spinner component with customizable sizes
-- **Pagination**: Navigation component for paginated content
-- **Header**: Responsive navigation header with cart and user menu
-
-### ✅ Business Logic Utilities
-- **Price & Currency**: Formatting, discounts, tax calculations
-- **Validation**: Form validation with custom rules
-- **Image Optimization**: URL generation, lazy loading, compression
-- **Date & Time**: Formatting, relative time, business days
-
-### ✅ SEO & Metadata
-- **Dynamic meta tags** with react-helmet-async
-- **Open Graph** and Twitter Card support
-- **Structured data** (JSON-LD) for products and articles
-- **SEO utilities** for generating metadata from content
-
-### ✅ Error Handling & Logging
-- **React Error Boundary** for component-level error catching
-- **Global error handlers** for unhandled errors and rejections
-- **Error logging** with context and user information
-- **User-friendly error messages** and recovery options
-
-## 🛠 Tech Stack
-
-- **React 19** - UI library with modern features
-- **Vite** - Fast build tool and development server
-- **Tailwind CSS** - Utility-first CSS framework
-- **React Router** - Client-side routing
-- **Axios** - HTTP client for API calls
-- **React Query** - Data fetching and caching
-- **Zustand** - Lightweight state management
-- **React Helmet Async** - Document head management
-- **Date-fns** - Modern date utility library
-- **clsx** - Conditional CSS classes utility
-
-## 📁 Project Structure
+## Cấu trúc thư mục dự án
 
 ```
-src/
-├── components/           # Reusable UI components
-│   ├── ui/              # Base UI components
-│   ├── layout/          # Layout components
-│   └── ErrorBoundary.jsx
-├── hooks/               # Custom React hooks
-├── pages/               # Page components (to be implemented)
-├── providers/           # Context providers
-├── store/               # Zustand state stores
-├── utils/               # Utility functions
-├── App.jsx
-├── main.jsx
-└── index.css
+ecommerce_frontend/
+├── public/                 # Tài nguyên tĩnh
+├── src/
+│   ├── api/               # Cấu hình API, axios
+│   │   ├── axiosConfig.js
+│   │   └── demo.js
+│   ├── assets/            # Hình ảnh, SVG, styles
+│   ├── components/        # Các component tái sử dụng
+│   │   ├── common/        # Button, Input, Select, Loader, Modal
+│   │   ├── data-displays/ # Table, Filter, Pagination
+│   │   ├── form/          # TextField, SelectField, CheckboxField
+│   │   ├── layout/        # Navbar, Footer, Header
+│   │   ├── layouts/       # MainLayout
+│   │   ├── loading/       # LoadingSpinner, LoadingOverlay
+│   │   ├── shop/          # ProductCard, PriceDisplay, StarRating, QuantitySelector, Sidebar, AIBuilder
+│   │   ├── ui/            # Button, Input, Modal, Pagination, Popup, Tooltip
+│   │   ├── widgets/       # Tooltip
+│   │   ├── CouponList.jsx
+│   │   ├── LanguageSwitcher.jsx
+│   │   └── SEO.jsx
+│   ├── configs/           # Cấu hình table, filter
+│   ├── context/           # LanguageContext (đa ngôn ngữ)
+│   ├── forms/             # Form rules (validation)
+│   ├── hooks/             # useClickOutside, useApi
+│   ├── i18n/              # Cấu hình i18next, locales (en.js, vi.js)
+│   ├── logic/             # priceCalculator
+│   ├── navigation/
+│   │   ├── context/       # NavigationContext
+│   │   └── routes/        # AppRoutes, PublicRoutes, PrivateRoutes, PublicRoute, PrivateRoute
+│   ├── pages/
+│   │   ├── admins/        # Dashboard, UserManagement
+│   │   ├── auth/          # Login, Register
+│   │   ├── clients/       # Home, ProductListing, ProductDetail, Cart, Checkout, Wishlist, Account
+│   │   └── errors/        # NotFound, Unauthorized, ServerError
+│   ├── providers/         # QueryProvider, providers index
+│   ├── services/          # api, errorHandler, tokenManager
+│   ├── store/             # Zustand stores (auth, cart, wishlist, ui)
+│   ├── tests/             # Các test UI mẫu
+│   ├── utils/             # authUtils, validation, price, dateTime, image, seo
+│   ├── App.jsx
+│   ├── App.css
+│   ├── main.jsx
+│   └── index.css
+├── .env, .env.development
+├── index.html
+├── package.json
+├── tailwind.config.js
+├── vite.config.js
+└── postcss.config.js
 ```
 
-## 🚀 Getting Started
+---
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+## Các thành phần (Components)
 
-2. **Start development server:**
-   ```bash
-   npm run dev
-   ```
+### Layout
+- **Navbar** – Thanh điều hướng chính, tìm kiếm, giỏ hàng, wishlist, chuyển ngôn ngữ
+- **Footer** – Chân trang
+- **MainLayout** – Bố cục chính (Navbar + Outlet + Footer)
 
-3. **Build for production:**
-   ```bash
-   npm run build
-   ```
+### Shop (components/shop)
+- **ProductCard** – Thẻ sản phẩm (ảnh, tên, giá, đánh giá, nút thêm vào giỏ/wishlist)
+- **PriceDisplay** – Hiển thị giá gốc, giá khuyến mãi
+- **StarRating** – Đánh giá sao
+- **QuantitySelector** – Chọn số lượng sản phẩm
+- **Sidebar** – Lọc theo danh mục, thương hiệu, mục đích sử dụng, khoảng giá
+- **AIBuilder** – Trợ lý AI gợi ý cấu hình PC theo ngân sách và nhu cầu
+- **CouponList** – Chọn mã giảm giá khi thanh toán (components/)
 
-4. **Preview production build:**
-   ```bash
-   npm run preview
-   ```
+### Form & Data Display
+- **TextField, SelectField, CheckboxField** – Các trường form
+- **Table, TableAdditional** – Bảng dữ liệu (sắp xếp, tìm kiếm, phân trang)
+- **Filter, Pagination** – Lọc và phân trang
 
-## 🔧 Configuration
+### UI chung
+- **Button, Input, Modal, Popup, Tooltip** – Thành phần giao diện cơ bản
+- **LoadingSpinner, LoadingOverlay** – Trạng thái tải
+- **LanguageSwitcher** – Chuyển đổi ngôn ngữ (vi/en)
+- **SEO** – Cấu hình meta cho SEO
 
-### Environment Variables
+### Routes (navigation/routes)
+- **PublicRoute** – Trang công khai
+- **PrivateRoute** – Trang yêu cầu đăng nhập/phân quyền
 
-Create a `.env` file in the root directory:
+---
 
-```env
-VITE_API_BASE_URL=http://localhost:3000/api
+## Các chức năng
+
+### Khách hàng
+- **Trang chủ** – Hero slider, sản phẩm nổi bật, sản phẩm mới, khuyến mãi
+- **Danh sách sản phẩm** – Grid sản phẩm, lọc (danh mục, thương hiệu, giá, mục đích sử dụng)
+- **Chi tiết sản phẩm** – Thông tin sản phẩm, chọn số lượng, thêm giỏ/wishlist
+- **Giỏ hàng** – Xem, sửa số lượng, xóa sản phẩm
+- **Thanh toán** – Tổng tiền, áp dụng coupon, phí vận chuyển
+- **Wishlist** – Danh sách yêu thích
+- **Tài khoản** – Thông tin cá nhân (account tabs)
+
+### Xác thực
+- **Đăng nhập** – Email, mật khẩu
+- **Đăng ký** – Tạo tài khoản mới
+
+### Admin
+- **Dashboard** – Bảng điều khiển tổng quan
+- **Quản lý người dùng** – UserManagementPage
+
+### Khác
+- **Đa ngôn ngữ** – Tiếng Việt (mặc định) và Tiếng Anh
+- **AI PC Builder** – Gợi ý cấu hình PC theo ngân sách và nhu cầu
+- **Coupon** – Áp dụng mã giảm giá (giảm %, giảm cố định, min order value)
+
+---
+
+## Kỹ thuật sử dụng
+
+| Công nghệ | Mục đích |
+|-----------|----------|
+| **React 18** | UI framework |
+| **Vite 5** | Build tool, dev server |
+| **React Router v6** | Điều hướng SPA |
+| **Zustand** | State management (auth, cart, wishlist, ui) |
+| **Tailwind CSS** | Styling |
+| **Lucide React, React Icons** | Icons |
+| **React Hook Form** | Quản lý form |
+| **Axios** | Gọi API HTTP |
+| **JWT Decode** | Xử lý JWT |
+| **Lodash Debounce** | Debounce input/search |
+| **env-cmd** | Quản lý biến môi trường |
+
+---
+
+## Chức năng nổi bật
+
+1. **Đa ngôn ngữ (i18n)**  
+   Hỗ trợ Tiếng Việt và Tiếng Anh, lưu lựa chọn vào `localStorage`.
+
+2. **AI PC Builder**  
+   Chatbot gợi ý linh kiện PC theo ngân sách và nhu cầu (gaming, AI, đồ họa).
+
+3. **Hệ thống coupon**  
+   Mã giảm % hoặc cố định, giới hạn sử dụng, giá đơn hàng tối thiểu.
+
+4. **Tính giá tự động**  
+   `priceCalculator.js` tính subtotal, discount, shipping, total (hỗ trợ VND).
+
+5. **State lưu trữ**  
+   Giỏ hàng và wishlist được lưu vào `localStorage` qua Zustand persist.
+
+6. **Phân quyền**  
+   Private routes với kiểm tra vai trò (ADMIN, USER).
+
+7. **Responsive**  
+   Thiết kế responsive cho mobile, tablet, desktop.
+
+8. **Lazy loading**  
+   Sử dụng `React.lazy` và `Suspense` cho các trang và route.
+
+---
+
+## Hướng dẫn sử dụng
+
+### Yêu cầu
+- Node.js 18+
+- npm hoặc yarn
+
+### Cài đặt
+```bash
+# Clone và vào thư mục dự án
+cd ecommerce_frontend
+
+# Cài đặt dependencies
+npm install
 ```
 
-### API Configuration
+### Biến môi trường
+Tạo file `.env` hoặc `.env.development` (xem `.env.example` nếu có) và cấu hình các biến cần thiết (API URL, keys, …).
 
-Update the base URL and other API settings in `src/services/api.js`.
+### Chạy ứng dụng
+```bash
+# Chạy development (dùng .env.development)
+npm run dev
 
-### Styling
+# Chạy với .env mặc định
+npm start
 
-The project uses Tailwind CSS. Customize the theme in `tailwind.config.js`.
+# Build production
+npm run build
 
-## 📖 Usage Examples
-
-### Using the API Service
-
-```javascript
-import { apiService } from '../services';
-
-// GET request
-const products = await apiService.get('/products');
-
-// POST request with auth
-const newProduct = await apiService.post('/products', productData);
-
-// Using React Query hooks
-import { useApiQuery, useApiMutation } from '../hooks/useApi';
-
-const { data: products, isLoading } = useApiQuery('products', '/products');
-const createProduct = useApiMutation('/products');
+# Preview build
+npm run preview
 ```
 
-### State Management
+### Scripts khác
+```bash
+# Lint code
+npm run lint
 
-```javascript
-import { useAuthStore, useCartStore } from '../store';
-
-function MyComponent() {
-  const { user, login } = useAuthStore();
-  const { items, addItem } = useCartStore();
-
-  // Use the stores...
-}
+# Format & fix
+npm run format:fix
 ```
 
-### UI Components
+### Routes chính
+| Path | Mô tả |
+|------|-------|
+| `/` | Trang chủ |
+| `/products` | Danh sách sản phẩm |
+| `/products/:slug` | Chi tiết sản phẩm |
+| `/cart` | Giỏ hàng |
+| `/checkout` | Thanh toán |
+| `/wishlist` | Danh sách yêu thích |
+| `/account` | Tài khoản |
+| `/login` | Đăng nhập |
+| `/register` | Đăng ký |
+| `/app` | Admin Dashboard (cần ADMIN) |
+| `/users` | Quản lý người dùng (cần ADMIN/USER) |
 
-```jsx
-import { Button, Input, Modal } from '../components/ui';
+---
 
-function MyForm() {
-  return (
-    <form>
-      <Input
-        label="Email"
-        type="email"
-        error={errors.email}
-        required
-      />
-      <Button type="submit" loading={isSubmitting}>
-        Submit
-      </Button>
-    </form>
-  );
-}
-```
+## Cấu hình Tailwind
 
-### Business Logic Utilities
+Dự án dùng bộ màu tùy chỉnh: `primary`, `accent`, `neutral`, `success`, `danger`. Font chính: **Inter**. Có sẵn animation như `fade-in`, `fade-in-up`, `shimmer`, `float` trong `tailwind.config.js`.
 
-```javascript
-import { priceUtils, validationUtils, dateTimeUtils } from '../utils';
+---
 
-// Format price
-const formattedPrice = priceUtils.formatPrice(99.99); // "$99.99"
-
-// Validate form
-const validation = validationUtils.validateForm(formData, rules);
-
-// Format date
-const relativeTime = dateTimeUtils.getRelativeTime(date); // "2 hours ago"
-```
-
-### SEO Management
-
-```jsx
-import SEO from '../components/SEO';
-
-function ProductPage({ product }) {
-  return (
-    <>
-      <SEO
-        title={`${product.name} - Buy Online`}
-        description={product.description}
-        image={product.image}
-        type="product"
-      />
-      {/* Page content */}
-    </>
-  );
-}
-```
-
-## 🔒 Security Features
-
-- **JWT token management** with automatic refresh
-- **Secure token storage** in localStorage with expiration checks
-- **Request sanitization** and error boundary protection
-- **XSS protection** through React's built-in sanitization
-
-## 🎯 Performance Optimizations
-
-- **Code splitting** with React.lazy (ready for implementation)
-- **Image optimization** utilities for responsive images
-- **Caching strategies** with React Query
-- **Lazy loading** for images and components
-- **Bundle optimization** with Vite
-
-## 🔄 Next Steps
-
-With this solid foundation, you can now:
-
-1. **Implement pages**: Create product listing, detail, cart, checkout pages
-2. **Add routing**: Set up React Router with protected routes
-3. **Integrate backend**: Connect to your actual API endpoints
-4. **Add authentication**: Implement login/register flows
-5. **Enhance UI**: Add more components as needed
-6. **Add testing**: Set up unit and integration tests
-7. **Deploy**: Configure CI/CD and deployment pipeline
-
-## 📝 Contributing
-
-1. Follow the existing code structure and naming conventions
-2. Add proper TypeScript types (when migrating to TS)
-3. Write comprehensive tests for new features
-4. Update documentation for new components and utilities
-5. Follow the established patterns for state management and API calls
-
-## 📄 License
-
-This project is licensed under the MIT License.
+*README được tạo cho dự án E-commerce Frontend - Học kỳ 8*
