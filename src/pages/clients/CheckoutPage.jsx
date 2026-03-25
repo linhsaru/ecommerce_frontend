@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   HiOutlineCheckCircle,
   HiOutlineChevronRight,
@@ -12,8 +12,12 @@ import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { coupons, userAddresses } from '../../data/mockData';
 import CouponList from '../../components/CouponList';
+import { paymentApi } from '../../api/paymentApi';
+import { orderApi } from '../../api/orderApi';
 import { calculateOrderTotals } from '../../logic/priceCalculator';
 import { useTranslation } from '../../context/LanguageContext';
+import { formatVnd } from '../../utils/price';
+import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
 
 // payment_method ENUM: cod, bank_transfer, vnpay, momo, stripe, paypal, other
 const PAYMENT_METHODS = [
@@ -26,11 +30,25 @@ const PAYMENT_METHODS = [
 
 const FREE_SHIPPING_THRESHOLD = 199;
 const SHIPPING_FEE = 9.99;
+const PAYMENT_METHOD_TO_ENUM = {
+  cod: 0,
+  vnpay: 1,
+  momo: 2,
+  bank_transfer: 3,
+  stripe: 4,
+};
 
 const CheckoutPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { items, total: cartTotal, clearCart } = useCartStore();
+  const location = useLocation();
+  const { items: cartStoreItems, total: cartStoreTotal, clearCart } = useCartStore();
+
+  const buyNowItem = location.state?.buyNowItem;
+  const items = buyNowItem ? [buyNowItem] : cartStoreItems;
+  const cartTotal = buyNowItem
+    ? (buyNowItem.discountPrice ?? buyNowItem.price) * buyNowItem.quantity
+    : cartStoreTotal;
   const { user, isAuthenticated } = useAuthStore();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,6 +74,11 @@ const CheckoutPage = () => {
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'info' });
+
+  const showToast = (message, status = 'info') => {
+    setToastConfig({ isVisible: true, message, status });
+  };
 
   useEffect(() => {
     if (isAuthenticated && defaultAddress) {
@@ -107,56 +130,70 @@ const CheckoutPage = () => {
 
   const handlePlaceOrder = async () => {
     setIsSubmitting(true);
-    const { order, orderItems } = buildOrderPayload();
-    // TODO: Submit to API when backend is ready
-    console.log('Order payload:', { order, orderItems, payment_method: paymentMethod });
-    await new Promise((r) => setTimeout(r, 1200));
+    const orderPayload = buildOrderPayload();
 
-    setOrderNo(order.order_no);
-    setOrderPlaced(true);
-    clearCart();
-    setIsSubmitting(false);
+    try {
+      const orderResponse = await orderApi.createOrder(orderPayload);
+      const createdOrderId =
+        orderResponse?.data?.orderId ||
+        orderResponse?.orderId ||
+        orderResponse?.data?.id ||
+        orderResponse?.id;
+
+      if (!createdOrderId) {
+        console.error('Không nhận được createdOrderId từ backend:', orderResponse);
+        showToast('Lỗi: Không lấy được ID đơn hàng sau khi tạo. Vui lòng kiểm tra lại API tạo đơn hàng.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (paymentMethod === 'vnpay') {
+        const clientReturnUrl = `${window.location.origin}/payments/vnpay/return`;
+        const payload = {
+          orderId: createdOrderId,
+          orderDescription: `Thanh toan don hang ${createdOrderId}`,
+          returnUrl: clientReturnUrl,
+          clientReturnUrl,
+        };
+        const response = await paymentApi.createVNPayUrl(payload);
+
+        const paymentUrl = response?.data?.paymentUrl || response?.paymentUrl;
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+          return;
+        } else {
+          console.error("VNPay Error - No paymentUrl in response:", response);
+          showToast('Lỗi khi tạo giao dịch VNPay. Vui lòng thử lại!', 'error');
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 1200));
+        setOrderNo(createdOrderId);
+        setOrderPlaced(true);
+        if (!buyNowItem) {
+          clearCart();
+        }
+      }
+    } catch (error) {
+      console.error("Order submission failed:", error);
+      showToast('Đã có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const buildOrderPayload = () => {
-    const order = {
-      order_no: `ORD-${Date.now().toString(36).toUpperCase()}`,
-      user_id: user?.id ?? null,
-      status: 'pending',
-      payment_status: 'unpaid',
-      subtotal_amount: totals.subtotal_amount,
-      discount_amount: totals.discount_amount,
-      shipping_amount: totals.shipping_amount,
-      total_amount: totals.total_amount,
-      currency: 'VND',
-      coupon_id: selectedCoupon?.id ?? null,
-      note: null,
-      ship_recipient: shippingData.ship_recipient,
-      ship_phone: shippingData.ship_phone,
-      ship_line1: shippingData.ship_line1,
-      ship_line2: shippingData.ship_line2 || null,
-      ship_ward: shippingData.ship_ward || null,
-      ship_district: shippingData.ship_district || null,
-      ship_province: shippingData.ship_province || null,
-      ship_country: shippingData.ship_country,
-      ship_postal_code: shippingData.ship_postal_code || null,
-    };
-
-    const orderItems = items.map((item) => {
-      const unitPrice = item.discountPrice ?? item.price ?? 0;
-      return {
-        product_id: item.id,
-        variant_id: item.variant_id ?? item.id,
-        sku: item.sku ?? `SKU-${item.id}`,
-        name: item.name,
-        variant_name: item.variant_name ?? null,
-        unit_price: unitPrice,
+    return {
+      userId: user?.id,
+      shippingAddress: shippingData.ship_line1,
+      phoneNumber: shippingData.ship_phone,
+      ward: shippingData.ship_ward || '',
+      province: shippingData.ship_province || '',
+      paymentMethod: PAYMENT_METHOD_TO_ENUM[paymentMethod] ?? 0,
+      items: items.map((item) => ({
+        productVariantId: item.variantId || item.variant_id || item.id,
         quantity: item.quantity,
-        line_total: unitPrice * item.quantity,
-      };
-    });
-
-    return { order, orderItems };
+      })),
+    };
   };
 
   if (orderPlaced) {
@@ -228,11 +265,10 @@ const CheckoutPage = () => {
                         key={addr.id}
                         type="button"
                         onClick={() => setSelectedAddressId(addr.id)}
-                        className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
-                          selectedAddressId === addr.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-slate-200 hover:border-slate-300'
-                        }`}
+                        className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${selectedAddressId === addr.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-300'
+                          }`}
                       >
                         <p className="font-medium text-slate-800">{addr.recipient}</p>
                         <p className="text-sm text-slate-500">{addr.line1}, {addr.district}, {addr.province}</p>
@@ -254,7 +290,7 @@ const CheckoutPage = () => {
                     required
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('phone')}</label>
                   <input
                     name="ship_phone"
@@ -263,16 +299,6 @@ const CheckoutPage = () => {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
                     placeholder="0912345678"
                     required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('postal_code')}</label>
-                  <input
-                    name="ship_postal_code"
-                    value={shippingData.ship_postal_code}
-                    onChange={handleShippingChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="700000"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -287,16 +313,6 @@ const CheckoutPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('address_line2')}</label>
-                  <input
-                    name="ship_line2"
-                    value={shippingData.ship_line2}
-                    onChange={handleShippingChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Apartment, suite (optional)"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Ward</label>
                   <input
                     name="ship_ward"
@@ -306,28 +322,10 @@ const CheckoutPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('district')}</label>
-                  <input
-                    name="ship_district"
-                    value={shippingData.ship_district}
-                    onChange={handleShippingChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Province</label>
                   <input
                     name="ship_province"
                     value={shippingData.ship_province}
-                    onChange={handleShippingChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('country')}</label>
-                  <input
-                    name="ship_country"
-                    value={shippingData.ship_country}
                     onChange={handleShippingChange}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
                   />
@@ -344,9 +342,8 @@ const CheckoutPage = () => {
                     key={m.id}
                     type="button"
                     onClick={() => setPaymentMethod(m.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      paymentMethod === m.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${paymentMethod === m.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     <p className="font-medium text-slate-800">{t(m.nameKey)}</p>
                     <p className="text-xs text-slate-500">{t(m.descKey)}</p>
@@ -380,16 +377,22 @@ const CheckoutPage = () => {
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
-                      <img src={item.image} alt="" className="w-full h-full object-cover" />
+                      <img src={item.image || (item.images && item.images[0])} alt="" className="w-full h-full object-cover" />
                       <span className="absolute -top-1 -right-1 w-5 h-5 bg-slate-700 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {item.quantity}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800 line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {(item.selectedColor || item.selectedSize) && (
+                          <span className="mr-1">{item.selectedColor} {item.selectedColor && item.selectedSize ? '/' : ''} {item.selectedSize} &bull;</span>
+                        )}
+                        <span>SL: {item.quantity}</span>
+                      </p>
                     </div>
                     <p className="text-sm font-semibold text-slate-800">
-                      ${(((item.discountPrice ?? item.price) || 0) * item.quantity).toFixed(2)}
+                      {formatVnd(((item.discountPrice ?? item.price) || 0) * item.quantity)}
                     </p>
                   </div>
                 ))}
@@ -397,24 +400,24 @@ const CheckoutPage = () => {
               <div className="border-t border-slate-100 pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Subtotal</span>
-                  <span className="text-slate-800">${totals.subtotal_amount.toFixed(2)}</span>
+                  <span className="text-slate-800">{formatVnd(totals.subtotal_amount)}</span>
                 </div>
                 {totals.discount_amount > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>{t('discount')}</span>
-                    <span>-${totals.discount_amount.toFixed(2)}</span>
+                    <span>{formatVnd(totals.discount_amount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">{t('shipping')}</span>
                   <span className={totals.shipping_amount === 0 ? 'text-green-600 font-medium' : 'text-slate-800'}>
-                    {totals.shipping_amount === 0 ? t('free') : `$${totals.shipping_amount.toFixed(2)}`}
+                    {totals.shipping_amount === 0 ? t('free') : formatVnd(totals.shipping_amount)}
                   </span>
                 </div>
               </div>
               <div className="border-t border-slate-100 mt-4 pt-4 flex justify-between items-center">
                 <span className="font-semibold text-slate-800">{t('total')}</span>
-                <span className="text-xl font-bold text-slate-900">${totals.total_amount.toFixed(2)}</span>
+                <span className="text-xl font-bold text-slate-900">{formatVnd(totals.total_amount)}</span>
               </div>
               <button
                 onClick={handlePlaceOrder}
@@ -429,7 +432,7 @@ const CheckoutPage = () => {
                 ) : (
                   <>
                     <HiOutlineLockClosed className="w-5 h-5" />
-                    {t('place_order')} — ${totals.total_amount.toFixed(2)}
+                    {t('place_order')} — {formatVnd(totals.total_amount)}
                   </>
                 )}
               </button>
@@ -441,6 +444,12 @@ const CheckoutPage = () => {
           </div>
         </div>
       </div>
+      <ToastNotification
+        isVisible={toastConfig.isVisible}
+        message={toastConfig.message}
+        status={toastConfig.status}
+        onClose={() => setToastConfig((prev) => ({ ...prev, isVisible: false }))}
+      />
     </div>
   );
 };

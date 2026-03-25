@@ -10,20 +10,129 @@ import {
 } from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
 import { QuantitySelector, ProductCard } from '../../components/shop';
-import { products } from '../../data/mockData';
-import { useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
+import { formatVnd } from '../../utils/price';
+import { useTranslation } from '../../context/LanguageContext';
+import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
+import { useProductStore } from '../../store/productStore';
+import { imageUtils } from '../../utils/image';
+
+const mapApiProductToCardViewModel = (p) => {
+  const price = p?.originalPrice ?? 0;
+  const discountPrice = p?.discountedPrice ?? null;
+  const discountPercent =
+    typeof p?.discountPercent === 'number' ? p.discountPercent : null;
+
+  const images =
+    Array.isArray(p?.imageProduct) && p.imageProduct.length > 0
+      ? [...p.imageProduct]
+        .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0))
+        .map((img) => img?.url)
+        .filter(Boolean)
+      : [];
+
+  const badge = typeof discountPercent === 'number' && discountPercent > 0
+    ? `-${Math.round(discountPercent)}%`
+    : null;
+
+  return {
+    id: p?.id,
+    slug: p?.slug,
+    name: p?.name ?? '',
+    description: p?.description ?? '',
+    brand: p?.brandName ?? '',
+    price,
+    discountPrice,
+    rating: p?.averageRating ?? p?.rating ?? 4.8,
+    reviewCount: p?.reviewCount ?? 0,
+    badge,
+    badgeColor: badge ? 'danger' : 'primary',
+    isNew: false,
+    images: images.length ? images : (p?.thumbnailUrl ? [p.thumbnailUrl] : []),
+    thumbnailUrl: p?.thumbnailUrl ?? null,
+  };
+};
 
 const CartPage = () => {
   const { items, total, itemCount, removeItem, updateQuantity, clearCart } = useCartStore();
+  const { t } = useTranslation();
+  const { fetchProducts } = useProductStore();
+
+  const placeholderSrc = useMemo(
+    () => (typeof document !== 'undefined' ? imageUtils.generatePlaceholder(220, 220) : ''),
+    []
+  );
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
+  const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'success' });
+
+  const showToast = (message, status = 'success') => {
+    setToastConfig({ isVisible: true, message, status });
+  };
+
+  const handleRemoveItem = async (productId, variantId) => {
+    await removeItem(productId, variantId);
+    showToast(`${t('remove_from_cart_success')}`, 'success');
+  };
 
   const shipping = total >= 199 ? 0 : 9.99;
   const tax = total * 0.08;
   const discount = promoApplied ? total * 0.1 : 0;
   const grandTotal = total + shipping + tax - discount;
 
-  const suggestedProducts = products.filter((p) => !items.find((i) => i.id === p.id)).slice(0, 4);
+  const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [isSuggestedLoading, setIsSuggestedLoading] = useState(false);
+
+  const getCartItemImageSrc = (item) => {
+    if (!item) return placeholderSrc;
+    if (typeof item.image === 'string' && item.image) return item.image;
+    if (typeof item.thumbnailUrl === 'string' && item.thumbnailUrl) return item.thumbnailUrl;
+
+    if (Array.isArray(item.images) && item.images.length > 0) {
+      const first = item.images[0];
+      if (typeof first === 'string') return first;
+      if (first && typeof first.url === 'string') return first.url;
+    }
+
+    if (Array.isArray(item.imageProduct) && item.imageProduct.length > 0) {
+      const first = item.imageProduct[0];
+      if (typeof first === 'string') return first;
+      if (first && typeof first.url === 'string') return first.url;
+    }
+
+    if (typeof item.productImage === 'string' && item.productImage) return item.productImage;
+
+    return placeholderSrc;
+  };
+
+  useEffect(() => {
+    if (items.length !== 0) return;
+
+    let cancelled = false;
+    setIsSuggestedLoading(true);
+
+    fetchProducts({ page: 1, pageSize: 20 })
+      .then((res) => {
+        const list = res?.items ?? [];
+        const newest = [...list]
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 4);
+        if (cancelled) return;
+        setSuggestedProducts(newest.map(mapApiProductToCardViewModel));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSuggestedProducts([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsSuggestedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [items.length, fetchProducts]);
 
   const handleApplyPromo = () => {
     if (['BUILD15', 'FREESHIP', 'SAVE10'].includes(promoCode.toUpperCase())) {
@@ -39,20 +148,20 @@ const CartPage = () => {
             <div className="w-24 h-24 mx-auto mb-6 bg-neutral-100 rounded-full flex items-center justify-center">
               <HiOutlineShoppingBag className="w-10 h-10 text-neutral-400" />
             </div>
-            <h1 className="text-display-sm text-neutral-900 mb-3">Your cart is empty</h1>
+            <h1 className="text-display-sm text-neutral-900 mb-3">{t('cart_empty_title')}</h1>
             <p className="text-body-md text-neutral-500 mb-8">
-              Looks like you haven&apos;t added anything to your cart yet. Start shopping to fill it up!
+              {t('cart_empty_desc')}
             </p>
             <Link to="/products" className="btn-primary btn-lg">
-              Start Shopping
+              {t('cart_start_shopping')}
               <HiOutlineArrowRight className="w-5 h-5" />
             </Link>
           </div>
 
           {/* Suggested Products */}
-          {suggestedProducts.length > 0 && (
+          {!isSuggestedLoading && suggestedProducts.length > 0 && (
             <div className="mt-20">
-              <h2 className="text-heading-lg text-neutral-900 mb-6">You might like these</h2>
+              <h2 className="text-heading-lg text-neutral-900 mb-6">{t('cart_you_might_like')}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {suggestedProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -71,9 +180,9 @@ const CartPage = () => {
       <div className="bg-white border-b border-neutral-100">
         <div className="container-custom py-3">
           <nav className="flex items-center gap-2 text-caption text-neutral-500">
-            <Link to="/" className="hover:text-primary-600 transition-colors">Home</Link>
+            <Link to="/" className="hover:text-primary-600 transition-colors">{t('home')}</Link>
             <span>/</span>
-            <span className="text-neutral-800 font-medium">Shopping Cart</span>
+            <span className="text-neutral-800 font-medium">{t('cart_shopping_cart')}</span>
           </nav>
         </div>
       </div>
@@ -81,15 +190,15 @@ const CartPage = () => {
       <div className="container-custom py-8 md:py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-display-sm text-neutral-900 mb-1">Shopping Cart</h1>
-            <p className="text-body-md text-neutral-500">{itemCount} item{itemCount !== 1 ? 's' : ''} in your cart</p>
+            <h1 className="text-display-sm text-neutral-900 mb-1">{t('cart_shopping_cart')}</h1>
+            <p className="text-body-md text-neutral-500">{itemCount} {t('cart_items_count')}</p>
           </div>
           <button
             onClick={clearCart}
             className="btn-ghost text-danger-600 hover:text-danger-700 hover:bg-danger-50"
           >
             <HiOutlineTrash className="w-4 h-4" />
-            Clear Cart
+            {t('cart_clear')}
           </button>
         </div>
 
@@ -103,7 +212,7 @@ const CartPage = () => {
                   <Link to={`/products/${item.slug}`} className="flex-shrink-0">
                     <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden bg-neutral-100">
                       <img
-                        src={item.image}
+                        src={getCartItemImageSrc(item)}
                         alt={item.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -129,7 +238,7 @@ const CartPage = () => {
                         )}
                       </div>
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => handleRemoveItem(item.id, item.variantId)}
                         className="p-2 text-neutral-400 hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-all duration-200"
                       >
                         <HiOutlineTrash className="w-4.5 h-4.5" />
@@ -139,16 +248,16 @@ const CartPage = () => {
                     <div className="flex items-end justify-between mt-4">
                       <QuantitySelector
                         quantity={item.quantity}
-                        onChange={(qty) => updateQuantity(item.id, qty)}
+                        onChange={(qty) => updateQuantity(item.id, item.variantId, qty)}
                         size="sm"
                       />
                       <div className="text-right">
                         <p className="text-heading-sm font-bold text-neutral-900">
-                          ${((item.discountPrice || item.price) * item.quantity).toFixed(2)}
+                          {formatVnd((item.discountPrice || item.price) * item.quantity)}
                         </p>
                         {item.discountPrice && (
                           <p className="text-caption text-neutral-400 line-through">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            {formatVnd(item.price * item.quantity)}
                           </p>
                         )}
                       </div>
@@ -161,7 +270,7 @@ const CartPage = () => {
             {/* Continue Shopping */}
             <div className="pt-4">
               <Link to="/products" className="btn-ghost text-primary-600 hover:text-primary-700">
-                ← Continue Shopping
+                {t('cart_continue_shopping')}
               </Link>
             </div>
           </div>
@@ -169,7 +278,7 @@ const CartPage = () => {
           {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="card p-6 sticky top-24">
-              <h3 className="text-heading-md text-neutral-900 mb-6">Order Summary</h3>
+              <h3 className="text-heading-md text-neutral-900 mb-6">{t('cart_order_summary')}</h3>
 
               {/* Promo Code */}
               <div className="mb-6">
@@ -178,7 +287,7 @@ const CartPage = () => {
                     <HiOutlineTag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                     <input
                       type="text"
-                      placeholder="Promo code"
+                      placeholder={t('cart_promo_placeholder')}
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       className="input pl-9 text-body-sm"
@@ -190,12 +299,12 @@ const CartPage = () => {
                     disabled={!promoCode || promoApplied}
                     className="btn-secondary btn-sm whitespace-nowrap disabled:opacity-50"
                   >
-                    {promoApplied ? '✓ Applied' : 'Apply'}
+                    {promoApplied ? t('cart_applied') : t('cart_apply')}
                   </button>
                 </div>
                 {promoApplied && (
                   <p className="text-caption text-success-600 mt-1.5 font-medium">
-                    Promo code applied! 10% discount
+                    {t('cart_promo_applied')}
                   </p>
                 )}
               </div>
@@ -203,28 +312,28 @@ const CartPage = () => {
               {/* Summary Lines */}
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-body-sm">
-                  <span className="text-neutral-500">Subtotal</span>
-                  <span className="text-neutral-800 font-medium">${total.toFixed(2)}</span>
+                  <span className="text-neutral-500">{t('cart_subtotal')}</span>
+                  <span className="text-neutral-800 font-medium">{formatVnd(total)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-body-sm">
-                    <span className="text-success-600">Discount</span>
-                    <span className="text-success-600 font-medium">-${discount.toFixed(2)}</span>
+                    <span className="text-success-600">{t('cart_discount')}</span>
+                    <span className="text-success-600 font-medium">-{formatVnd(discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-body-sm">
-                  <span className="text-neutral-500">Shipping</span>
+                  <span className="text-neutral-500">{t('cart_shipping_label')}</span>
                   <span className={`font-medium ${shipping === 0 ? 'text-success-600' : 'text-neutral-800'}`}>
-                    {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                    {shipping === 0 ? t('free') : formatVnd(shipping)}
                   </span>
                 </div>
                 <div className="flex justify-between text-body-sm">
-                  <span className="text-neutral-500">Tax (est.)</span>
-                  <span className="text-neutral-800 font-medium">${tax.toFixed(2)}</span>
+                  <span className="text-neutral-500">{t('cart_tax')}</span>
+                  <span className="text-neutral-800 font-medium">{formatVnd(tax)}</span>
                 </div>
                 {shipping > 0 && (
                   <p className="text-caption text-primary-600 bg-primary-50 rounded-lg px-3 py-2">
-                    Add ${(99 - total).toFixed(2)} more for free shipping!
+                    {t('cart_free_shipping_hint').replace('{amount}', formatVnd(199 - total))}
                   </p>
                 )}
               </div>
@@ -232,25 +341,25 @@ const CartPage = () => {
               <div className="divider mb-4" />
 
               <div className="flex justify-between mb-6">
-                <span className="text-heading-sm text-neutral-900">Total</span>
-                <span className="text-heading-md text-neutral-900 font-bold">${grandTotal.toFixed(2)}</span>
+                <span className="text-heading-sm text-neutral-900">{t('cart_total')}</span>
+                <span className="text-heading-md text-neutral-900 font-bold">{formatVnd(grandTotal)}</span>
               </div>
 
               <Link to="/checkout" className="btn-primary btn-lg w-full mb-4">
-                Proceed to Checkout
+                {t('cart_checkout_btn')}
                 <HiOutlineArrowRight className="w-5 h-5" />
               </Link>
 
               {/* Trust badges */}
               <div className="flex items-center justify-center gap-4 pt-4 border-t border-neutral-100">
                 {[
-                  { icon: HiOutlineTruck, text: 'Free Ship $99+' },
-                  { icon: HiOutlineShieldCheck, text: 'Secure' },
-                  { icon: HiOutlineArrowPath, text: '30-Day Returns' },
+                  { icon: HiOutlineTruck, textKey: 'cart_trust_freeship' },
+                  { icon: HiOutlineShieldCheck, textKey: 'cart_trust_secure' },
+                  { icon: HiOutlineArrowPath, textKey: 'cart_trust_returns' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-1 text-caption text-neutral-500">
                     <item.icon className="w-3.5 h-3.5" />
-                    <span>{item.text}</span>
+                    <span>{t(item.textKey)}</span>
                   </div>
                 ))}
               </div>
@@ -258,6 +367,12 @@ const CartPage = () => {
           </div>
         </div>
       </div>
+      <ToastNotification
+        isVisible={toastConfig.isVisible}
+        message={toastConfig.message}
+        status={toastConfig.status}
+        onClose={() => setToastConfig(p => ({ ...p, isVisible: false }))}
+      />
     </div>
   );
 };

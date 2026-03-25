@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     HiOutlineCheckCircle,
     HiOutlineExclamationTriangle,
@@ -56,9 +57,9 @@ const ToastNotification = ({
     const styleClasses = STYLES[status] || STYLES.info;
     const iconClasses = ICON_STYLES[status] || ICON_STYLES.info;
 
-    return (
-        <div className="fixed top-20 right-4 md:right-8 z-[100] animate-fade-in-down max-w-sm w-full">
-            <div className={`flex items-start gap-3 p-4 rounded-xl border shadow-lg shadow-black/5 ${styleClasses}`}>
+    return createPortal(
+        <div className="fixed top-20 right-4 md:right-8 z-[100] animate-fade-in-down max-w-sm w-full pointer-events-none">
+            <div className={`flex items-start gap-3 p-4 rounded-xl border shadow-lg shadow-black/5 pointer-events-auto ${styleClasses}`}>
                 <IconComponent className={`w-6 h-6 shrink-0 mt-0.5 ${iconClasses}`} />
 
                 <div className="flex-1 pr-2 mt-1">
@@ -73,7 +74,8 @@ const ToastNotification = ({
                     <HiOutlineXMark className="w-5 h-5 mt-1 opacity-70" />
                 </button>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

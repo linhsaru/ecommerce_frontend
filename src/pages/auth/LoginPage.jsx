@@ -10,6 +10,7 @@ import {
 } from 'react-icons/hi2';
 import { useAuthStore } from '../../store/authStore';
 import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
+import logo from '../../assets/images/logo.png';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -57,11 +58,11 @@ const LoginPage = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-soft-md">
-              <span className="text-white font-bold text-heading-sm">S</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-soft-sm bg-white overflow-hidden p-0.5">
+              <img src={logo} alt="LH Computer Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="text-display-sm text-neutral-900 tracking-tight">
-              Store<span className="text-primary-600">.</span>
+            <span className="text-heading-lg text-neutral-900 tracking-tight">
+              LH Computer<span className="text-primary-600">.</span>
             </span>
           </Link>
           <h1 className="text-display-sm text-neutral-900 mb-2">{t('welcome_back')}</h1>

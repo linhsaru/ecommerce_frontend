@@ -9,14 +9,98 @@ import {
   HiOutlineChatBubbleLeftRight,
 } from 'react-icons/hi2';
 import { ProductCard } from '../../components/shop';
-import { products, categories, promotions } from '../../data/mockData';
+import { promotions } from '../../data/mockData';
+import { useCategoryStore } from '../../store/categoryStore';
+import { useProductStore } from '../../store/productStore';
+
+const mapApiProductToCardViewModel = (p, { isNew = false } = {}) => {
+  const price = p?.originalPrice ?? 0;
+  const discountPrice = p?.discountedPrice ?? null;
+  const discountPercent =
+    typeof p?.discountPercent === 'number'
+      ? p.discountPercent
+      : price > 0 && discountPrice != null && discountPrice < price
+        ? ((price - discountPrice) / price) * 100
+        : null;
+
+  // Prefer imageProduct gallery; fallback to thumbnailUrl
+  const images =
+    Array.isArray(p?.imageProduct) && p.imageProduct.length > 0
+      ? [...p.imageProduct]
+        .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0))
+        .map((img) => img?.url)
+        .filter(Boolean)
+      : p?.thumbnailUrl
+        ? [p.thumbnailUrl]
+        : [];
+
+  const badge = typeof discountPercent === 'number' && discountPercent > 0
+    ? `-${Math.round(discountPercent)}%`
+    : null;
+
+  return {
+    id: p?.id,
+    slug: p?.slug,
+    name: p?.name ?? '',
+    description: p?.description ?? '',
+    brand: p?.brandName ?? '',
+    // fields used by ProductCard/PriceDisplay
+    price,
+    discountPrice,
+    rating: p?.averageRating ?? p?.rating ?? 4.8,
+    reviewCount: p?.reviewCount ?? 0,
+
+    badge,
+    badgeColor: badge ? 'danger' : 'primary',
+    isNew,
+
+    // fields used by ProductCard image resolution
+    images,
+    thumbnailUrl: p?.thumbnailUrl ?? null,
+  };
+};
 
 const HomePage = () => {
+  const { items: categories, fetchCategories } = useCategoryStore();
+  const { fetchProducts } = useProductStore();
   const { t } = useTranslation();
+
   const [currentSlide, setCurrentSlide] = useState(0);
-  const featuredProducts = products.filter((p) => p.isFeatured);
-  const newArrivals = products.filter((p) => p.isNew);
-  const dealProducts = products.filter((p) => p.discountPrice);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [dealProducts, setDealProducts] = useState([]);
+  const [newArrivals, setNewArrivals] = useState([]);
+
+  useEffect(() => {
+    fetchCategories({ page: 1, pageSize: 8 }).catch(() => { });
+
+    // Fetch Featured (Top rated)
+    fetchProducts({ page: 1, pageSize: 20 }).then(res => {
+      if (res?.items) {
+        // Sort by averageRating descending and take top 4
+        const topRated = [...res.items]
+          .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+          .slice(0, 4);
+        setFeaturedProducts(topRated.map((p) => mapApiProductToCardViewModel(p)));
+
+        // Sort by biggest discount difference
+        const bestDeals = [...res.items]
+          .filter(p => p.discountedPrice != null && p.originalPrice > p.discountedPrice)
+          .sort((a, b) => {
+            const diffA = a.originalPrice - a.discountedPrice;
+            const diffB = b.originalPrice - b.discountedPrice;
+            return diffB - diffA;
+          })
+          .slice(0, 4);
+        setDealProducts(bestDeals.map((p) => mapApiProductToCardViewModel(p)));
+
+        // Use newest products for new arrivals
+        const newest = [...res.items]
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 4);
+        setNewArrivals(newest.map((p) => mapApiProductToCardViewModel(p, { isNew: true })));
+      }
+    }).catch(() => { });
+  }, []);
 
   const heroSlides = [
     {
@@ -165,14 +249,14 @@ const HomePage = () => {
                 className="group relative overflow-hidden rounded-2xl bg-white shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="aspect-category overflow-hidden">
-                  <img src={cat.image} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
+                  <img src={cat.imageUrl || `https://picsum.photos/seed/${cat.id}/400/300`} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-body-sm font-semibold text-white">{cat.name}</h3>
-                      <p className="text-caption text-white/80">{cat.count} products</p>
+                      <p className="text-caption text-white/80">{cat.count || 0} products</p>
                     </div>
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
                       <HiArrowRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform" />
@@ -190,11 +274,11 @@ const HomePage = () => {
         <div className="container-custom">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <span className="badge-primary mb-2 inline-flex">Popular</span>
-              <h2 className="text-display-sm text-slate-900 mb-2">Featured Components</h2>
-              <p className="text-body-md text-slate-500">Top picks for builds</p>
+              <span className="badge-primary mb-2 inline-flex">{t('popular')}</span>
+              <h2 className="text-display-sm text-slate-900 mb-2">{t('featured_components')}</h2>
+              <p className="text-body-md text-slate-500">{t('top_picks_for_builds')}</p>
             </div>
-            <Link to="/products" className="btn-secondary hidden md:flex">View All</Link>
+            <Link to="/products" className="btn-secondary hidden md:flex">{t('view_all')}</Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {featuredProducts.slice(0, 4).map((p) => (
@@ -242,11 +326,11 @@ const HomePage = () => {
           <div className="container-custom">
             <div className="flex items-end justify-between mb-8">
               <div>
-                <span className="badge-danger mb-2 inline-flex">Sale</span>
-                <h2 className="text-display-sm text-slate-900 mb-2">Deals & Offers</h2>
-                <p className="text-body-md text-slate-500">Save on components</p>
+                <span className="badge-danger mb-2 inline-flex">{t('sale')}</span>
+                <h2 className="text-display-sm text-slate-900 mb-2">{t('deals_and_offers')}</h2>
+                <p className="text-body-md text-slate-500">{t('save_on_components')}</p>
               </div>
-              <Link to="/products" className="btn-secondary hidden md:flex">All Deals</Link>
+              <Link to="/products" className="btn-secondary hidden md:flex">{t('all_deals')}</Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {dealProducts.slice(0, 4).map((p) => (
@@ -263,11 +347,11 @@ const HomePage = () => {
           <div className="container-custom">
             <div className="flex items-end justify-between mb-8">
               <div>
-                <span className="badge-primary mb-2 inline-flex">New</span>
-                <h2 className="text-display-sm text-slate-900 mb-2">New Arrivals</h2>
-                <p className="text-body-md text-slate-500">Latest components</p>
+                <span className="badge-primary mb-2 inline-flex">{t('new')}</span>
+                <h2 className="text-display-sm text-slate-900 mb-2">{t('new_arrivals')}</h2>
+                <p className="text-body-md text-slate-500">{t('latest_components')}</p>
               </div>
-              <Link to="/products" className="btn-secondary hidden md:flex">View All</Link>
+              <Link to="/products" className="btn-secondary hidden md:flex">{t('view_all')}</Link>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {newArrivals.map((p) => (
@@ -283,16 +367,16 @@ const HomePage = () => {
         <div className="container-custom">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-500 to-blue-700 p-10 md:p-16 text-center">
             <div className="relative z-10">
-              <h2 className="text-display-md md:text-display-lg text-white mb-4">Ready to Build?</h2>
+              <h2 className="text-display-md md:text-display-lg text-white mb-4">{t('ready_to_build')}</h2>
               <p className="text-body-lg text-white/90 mb-8 max-w-2xl mx-auto">
-                Explore our full catalog of PC components. Use AI Builder for personalized recommendations.
+                {t('explore_our_full_catalog_of_pc_components')}
               </p>
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <Link to="/products" className="btn btn-lg bg-white text-blue-600 hover:bg-slate-50 shadow-lg">
-                  Shop Now
+                  {t('shop_now')}
                 </Link>
                 <Link to="/products#ai-builder" className="btn btn-lg bg-white/10 text-white border border-white/30 hover:bg-white/20">
-                  Try AI Builder
+                  {t('try_ai_builder')}
                 </Link>
               </div>
             </div>

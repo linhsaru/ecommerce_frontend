@@ -1,7 +1,60 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Tags, Plus, Search } from 'lucide-react';
+import { Tags, Plus, Search, ChevronRight, ChevronDown } from 'lucide-react';
 import { useCategoryStore } from '../../../store/categoryStore';
 import Pagination from '../../../components/data-displays/Pagination/Pagination';
+
+const CategoryRow = ({ category, level = 0 }) => {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = category.children && category.children.length > 0;
+
+  return (
+    <>
+      <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+        <td className="px-6 py-4">
+          <div className="flex items-center" style={{ paddingLeft: `${level * 2}rem` }}>
+            {hasChildren ? (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="mr-2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+              >
+                {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </button>
+            ) : (
+              <span className="w-6 inline-block" />
+            )}
+            <div>
+              <p className="font-medium text-slate-800">{category.name}</p>
+              {category.description && (
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{category.description}</p>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="px-6 py-4 text-slate-600">
+          {category.slug}
+        </td>
+        <td className="px-6 py-4 text-center">
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700">
+            Hoạt động
+          </span>
+        </td>
+        <td className="px-6 py-4">
+          <div className="flex justify-end gap-2">
+            <button className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+              Sửa
+            </button>
+            <button className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors">
+              Xóa
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded && hasChildren && category.children.map(child => (
+        <CategoryRow key={child.id} category={child} level={level + 1} />
+      ))}
+    </>
+  );
+};
 
 const CategoryManagementPage = () => {
   const {
@@ -54,6 +107,24 @@ const CategoryManagementPage = () => {
     const end = Math.min(page * pageSize, totalItems);
     return `Hiển thị ${start}–${end} / ${totalItems} mục`;
   }, [page, pageSize, totalItems]);
+
+  const categoryTree = useMemo(() => {
+    if (!items || items.length === 0) return [];
+    const map = {};
+    const roots = [];
+    items.forEach(c => {
+      map[c.id] = { ...c, children: [] };
+    });
+    items.forEach(c => {
+      const parentId = c.parentId || c.parent_id;
+      if (parentId && map[parentId]) {
+        map[parentId].children.push(map[c.id]);
+      } else {
+        roots.push(map[c.id]);
+      }
+    });
+    return roots;
+  }, [items]);
 
   return (
     <div className="space-y-6">
@@ -147,33 +218,8 @@ const CategoryManagementPage = () => {
                 </tr>
               )}
 
-              {!isLoading && items && items.map((category) => (
-                <tr key={category.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-slate-800">{category.name}</p>
-                    {category.description && (
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{category.description}</p>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {category.slug}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700">
-                      Hoạt động
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-end gap-2">
-                      <button className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                        Sửa
-                      </button>
-                      <button className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors">
-                        Xóa
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+              {!isLoading && categoryTree && categoryTree.map((category) => (
+                <CategoryRow key={category.id} category={category} />
               ))}
             </tbody>
           </table>
