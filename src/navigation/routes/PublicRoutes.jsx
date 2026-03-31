@@ -11,9 +11,11 @@ const CartPage = lazy(() => import('../../pages/clients/CartPage'));
 const CheckoutPage = lazy(() => import('../../pages/clients/CheckoutPage'));
 const WishlistPage = lazy(() => import('../../pages/clients/WishlistPage'));
 const AccountPage = lazy(() => import('../../pages/clients/AccountPage'));
+const VNPayReturnPage = lazy(() => import('../../pages/clients/VNPayReturnPage'));
 const LoginPage = lazy(() => import('../../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../../pages/auth/RegisterPage'));
 const TechNewsPage = lazy(() => import('../../pages/clients/TechNewsPage'));
+const OrderLookupPage = lazy(() => import('../../pages/clients/OrderLookupPage'));
 
 export const PublicRoute = ({ isAuthenticated, children }) => {
   return isAuthenticated ? <Navigate to="/app" /> : children;
@@ -44,6 +46,10 @@ const publicRoutes = [
         element: <CheckoutPage />,
       },
       {
+        path: '/payments/vnpay/return',
+        element: <VNPayReturnPage />,
+      },
+      {
         path: '/wishlist',
         element: <WishlistPage />,
       },
@@ -70,6 +76,14 @@ const publicRoutes = [
       {
         path: '/build-pc',
         element: <BuildPCPage />
+      },
+      {
+        path: '/order-lookup',
+        element: <OrderLookupPage />
+      },
+      {
+        path: '/order-lookup/:orderNo',
+        element: <OrderLookupPage />
       }
     ],
   },

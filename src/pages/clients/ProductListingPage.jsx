@@ -5,41 +5,164 @@ import {
   HiOutlineSquares2X2,
   HiOutlineListBullet,
   HiOutlineXMark,
-  HiOutlineChevronDown,
   HiOutlineMagnifyingGlass,
-  HiChevronLeft,
-  HiChevronRight,
 } from 'react-icons/hi2';
 import { ProductCard, Sidebar } from '../../components/shop';
-import {
-  products,
-  categories,
-  brands,
-  sortOptions,
-  usagePurposes,
-  priceRange,
-} from '../../data/mockData';
+import CategoryHoverMenu from '../../components/shop/CategoryHoverMenu';
+import Pagination from '../../components/data-displays/Pagination/Pagination';
+import { apiService } from '../../services';
+import { useCategoryStore } from '../../store/categoryStore';
+import { sortOptions, usagePurposes } from '../../data/mockData';
+import { formatVnd } from '../../utils/price';
+import { useTranslation } from '../../context/LanguageContext';
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 20;
+const LARGE_FETCH_PAGE_SIZE = 500;
 
 const ProductListingPage = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get('category') || '';
+  const { items: categories, fetchCategories } = useCategoryStore();
+
+  const [products, setProducts] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+
   const [viewMode, setViewMode] = useState('grid');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState(categoryFromUrl ? [categoryFromUrl] : []);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [selectedUsagePurpose, setSelectedUsagePurpose] = useState('');
-  const [priceSlider, setPriceSlider] = useState([priceRange.min, priceRange.max]);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
+  const [priceSlider, setPriceSlider] = useState([0, 0]);
   const [selectedSort, setSelectedSort] = useState('featured');
   const [currentPage, setCurrentPage] = useState(1);
+  const [serverTotalItems, setServerTotalItems] = useState(0);
+
+  const priceFilterActive =
+    priceRange.max > 0 &&
+    (priceSlider[0] > priceRange.min || priceSlider[1] < priceRange.max);
+
+  const useLargeFetch =
+    selectedBrands.length > 0 ||
+    !!selectedUsagePurpose ||
+    priceFilterActive ||
+    !!searchQuery.trim();
 
   useEffect(() => {
-    if (categoryFromUrl && !selectedCategories.includes(categoryFromUrl)) {
-      setSelectedCategories([categoryFromUrl]);
+    if (categoryFromUrl) {
+      if (!selectedCategories.includes(categoryFromUrl)) {
+        setSelectedCategories([categoryFromUrl]);
+      }
+    } else if (selectedCategories.length > 0) {
+      setSelectedCategories([]);
     }
-  }, [categoryFromUrl]);
+  }, [categoryFromUrl, selectedCategories]);
+
+  useEffect(() => {
+    const loadMeta = async () => {
+      try {
+        await fetchCategories();
+        const { data: brandResponse } = await apiService.get('/brands');
+        const brandRoot = brandResponse?.data ?? brandResponse;
+        const brandPayload = brandRoot?.data ?? brandRoot;
+        const brandItems = Array.isArray(brandPayload)
+          ? brandPayload
+          : Array.isArray(brandPayload?.items)
+            ? brandPayload.items
+            : [];
+        setBrands(brandItems);
+      } catch (error) {
+        console.error('Failed to load metadata', error);
+      }
+    };
+    loadMeta();
+  }, [fetchCategories]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategories, searchQuery, selectedBrands, selectedUsagePurpose]);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        let categorySlug = '';
+        if (selectedCategories.length > 0) {
+          categorySlug = selectedCategories[0];
+          const matchedById = categories.find((c) => c.id === categorySlug);
+          if (matchedById) {
+            categorySlug = matchedById.slug;
+          }
+        }
+
+        const endpoint = categorySlug
+          ? `/products/by-category/${categorySlug}`
+          : '/products';
+
+        const page = useLargeFetch ? 1 : currentPage;
+        const pageSize = useLargeFetch ? LARGE_FETCH_PAGE_SIZE : ITEMS_PER_PAGE;
+
+        const { data: response } = await apiService.get(endpoint, {
+          params: {
+            page,
+            pageSize,
+            status: 1,
+          },
+        });
+
+        const root = response?.data ?? response;
+        const payload = root?.data ?? root;
+        const items = Array.isArray(payload?.items)
+          ? payload.items
+          : Array.isArray(payload)
+            ? payload
+            : [];
+
+        const totalFromApi =
+          typeof payload?.totalItems === 'number'
+            ? payload.totalItems
+            : typeof payload?.totalCount === 'number'
+              ? payload.totalCount
+              : typeof payload?.total === 'number'
+                ? payload.total
+                : items.length;
+
+        setProducts(items);
+        setServerTotalItems(totalFromApi);
+
+        if (items.length > 0) {
+          // Backend đôi khi trả giá dạng string; cần ép kiểu để tính min/max đúng.
+          const prices = items
+            .map((p) => p.discountedPrice ?? p.originalPrice ?? 0)
+            .map((v) => (typeof v === 'number' ? v : Number(v)))
+            .filter((v) => Number.isFinite(v) && !Number.isNaN(v));
+
+          if (prices.length > 0) {
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+
+            if (!priceFilterActive) {
+              setPriceRange({ min, max });
+              setPriceSlider([min, max]);
+            } else if (useLargeFetch) {
+              setPriceRange({ min, max });
+            }
+          }
+        }
+      } catch (error) {
+        setLoadError(error.message || 'Failed to load products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [selectedCategories, categories, currentPage, useLargeFetch]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -49,23 +172,29 @@ const ProductListingPage = () => {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.brand?.toLowerCase().includes(q) ||
-          p.category_slug?.toLowerCase().includes(q) ||
+          p.slug?.toLowerCase().includes(q) ||
           p.description?.toLowerCase().includes(q)
       );
     }
 
-    const actualPrice = (p) => p.discountPrice ?? p.price;
-    result = result.filter((p) => actualPrice(p) >= priceSlider[0] && actualPrice(p) <= priceSlider[1]);
+    const actualPrice = (p) => {
+      const raw = p.discountedPrice ?? p.originalPrice ?? 0;
+      const v = typeof raw === 'number' ? raw : Number(raw);
+      return Number.isFinite(v) ? v : 0;
+    };
 
-    if (selectedCategories.length > 0) {
-      result = result.filter((p) => selectedCategories.includes(p.category_slug));
+    if (priceFilterActive) {
+      result = result.filter(
+        (p) => actualPrice(p) >= priceSlider[0] && actualPrice(p) <= priceSlider[1]
+      );
     }
 
-    if (selectedBrands.length > 0) {
+    // Local category filtering removed since it's handled via API
+
+    if (selectedBrands.length > 0 && brands.length > 0) {
       result = result.filter((p) => {
-        const brandSlug = brands.find((b) => b.id === p.brand_id)?.slug;
-        return selectedBrands.includes(brandSlug);
+        const brand = brands.find((b) => b.id === p.brandId);
+        return brand && selectedBrands.includes(brand.slug);
       });
     }
 
@@ -82,10 +211,18 @@ const ProductListingPage = () => {
 
     switch (selectedSort) {
       case 'price-low':
-        result.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
+        result.sort(
+          (a, b) =>
+            (a.discountedPrice ?? a.originalPrice ?? 0) -
+            (b.discountedPrice ?? b.originalPrice ?? 0)
+        );
         break;
       case 'price-high':
-        result.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
+        result.sort(
+          (a, b) =>
+            (b.discountedPrice ?? b.originalPrice ?? 0) -
+            (a.discountedPrice ?? a.originalPrice ?? 0)
+        );
         break;
       case 'name':
         result.sort((a, b) => a.name.localeCompare(b.name));
@@ -99,40 +236,44 @@ const ProductListingPage = () => {
 
     return result;
   }, [
+    products,
+    brands,
     searchQuery,
     priceSlider,
     selectedCategories,
     selectedBrands,
     selectedUsagePurpose,
     selectedSort,
+    priceFilterActive,
+    priceRange,
   ]);
 
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const paginationCount = useLargeFetch ? filteredProducts.length : serverTotalItems;
+  const totalPages = Math.max(1, Math.ceil(paginationCount / ITEMS_PER_PAGE));
+  const paginatedProducts = useLargeFetch
+    ? filteredProducts.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+    )
+    : filteredProducts;
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
+  const productCountLabel = useLargeFetch ? filteredProducts.length : serverTotalItems;
 
   const activeFilterCount = [
-    selectedCategories.length > 0,
     selectedBrands.length > 0,
     !!selectedUsagePurpose,
     priceSlider[0] !== priceRange.min || priceSlider[1] !== priceRange.max,
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
-    setSelectedCategories([]);
     setSelectedBrands([]);
     setSelectedUsagePurpose('');
     setPriceSlider([priceRange.min, priceRange.max]);
     setSearchQuery('');
-    setCurrentPage(1);
-  };
-
-  const toggleCategory = (slug) => {
-    setSelectedCategories((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
     setCurrentPage(1);
   };
 
@@ -158,11 +299,14 @@ const ProductListingPage = () => {
 
       <div className="container-custom py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">PC Components</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{filteredProducts.length} products found</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('product_listing')}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{productCountLabel} products found</p>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="w-full md:w-auto">
+            <CategoryHoverMenu categories={categories} />
+          </div>
           <div className="relative flex-1 max-w-md">
             <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
             <input
@@ -215,11 +359,6 @@ const ProductListingPage = () => {
         {activeFilterCount > 0 && (
           <div className="flex items-center gap-2 mb-6 flex-wrap">
             <span className="text-body-sm text-slate-500">Active filters:</span>
-            {selectedCategories.map((slug) => (
-              <button key={slug} onClick={() => toggleCategory(slug)} className="badge-primary flex items-center gap-1 hover:bg-blue-100">
-                {categories.find((c) => c.slug === slug)?.name} <HiOutlineXMark className="w-3 h-3" />
-              </button>
-            ))}
             {selectedBrands.map((slug) => (
               <button key={slug} onClick={() => toggleBrand(slug)} className="badge-primary flex items-center gap-1 hover:bg-blue-100">
                 {brands.find((b) => b.slug === slug)?.name} <HiOutlineXMark className="w-3 h-3" />
@@ -231,54 +370,72 @@ const ProductListingPage = () => {
               </button>
             )}
             {(priceSlider[0] !== priceRange.min || priceSlider[1] !== priceRange.max) && (
-              <button onClick={() => setPriceSlider([priceRange.min, priceRange.max])} className="badge-primary flex items-center gap-1 hover:bg-blue-100">
-                ${priceSlider[0].toFixed(0)}-${priceSlider[1].toFixed(0)} <HiOutlineXMark className="w-3 h-3" />
+              <button
+                onClick={() => setPriceSlider([priceRange.min, priceRange.max])}
+                className="badge-primary flex items-center gap-1 hover:bg-blue-100"
+              >
+                {formatVnd(priceSlider[0])} - {formatVnd(priceSlider[1])}
+                <HiOutlineXMark className="w-3 h-3" />
               </button>
             )}
             <button onClick={clearAllFilters} className="text-body-sm text-red-600 hover:text-red-700 font-medium">Clear all</button>
           </div>
         )}
 
-        <div className="flex gap-8">
-          <Sidebar
-            categories={categories}
-            brands={brands}
-            usagePurposes={usagePurposes}
-            priceRange={priceRange}
-            selectedCategories={selectedCategories}
-            selectedBrands={selectedBrands}
-            selectedUsagePurpose={selectedUsagePurpose}
-            priceSlider={priceSlider}
-            onCategoryToggle={toggleCategory}
-            onBrandToggle={toggleBrand}
-            onUsagePurposeChange={(v) => { setSelectedUsagePurpose(v); setCurrentPage(1); }}
-            onPriceChange={(v) => { setPriceSlider(v); setCurrentPage(1); }}
-            onClearFilters={clearAllFilters}
-            isOpen={isFilterOpen}
-            onClose={() => setIsFilterOpen(false)}
-          />
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="flex flex-col gap-6 w-full md:w-72 flex-shrink-0">
+            <Sidebar
+              brands={brands}
+              usagePurposes={usagePurposes}
+              priceRange={priceRange}
+              selectedBrands={selectedBrands}
+              selectedUsagePurpose={selectedUsagePurpose}
+              priceSlider={priceSlider}
+              onBrandToggle={toggleBrand}
+              onUsagePurposeChange={(v) => { setSelectedUsagePurpose(v); setCurrentPage(1); }}
+              onPriceChange={(v) => { setPriceSlider(v); setCurrentPage(1); }}
+              onClearFilters={clearAllFilters}
+              isOpen={isFilterOpen}
+              onClose={() => setIsFilterOpen(false)}
+            />
+          </div>
 
           <div className="flex-1">
             {paginatedProducts.length > 0 ? (
               <>
-                <div className={viewMode === 'grid' ? 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6' : 'space-y-4'}>
-                  {paginatedProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} variant={viewMode === 'list' ? 'horizontal' : 'default'} />
-                  ))}
+                <div className={viewMode === 'grid' ? 'grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6' : 'space-y-4'}>
+                  {paginatedProducts.map((product) => {
+                    const mappedProduct = {
+                      ...product,
+                      brand: product.brandName || '',
+                      image: product.thumbnailUrl,
+                      price: product.originalPrice ?? 0,
+                      discountPrice: product.discountedPrice ?? null,
+                      rating: product.rating ?? 4.8,
+                      reviewCount: product.reviewCount ?? 0,
+                      badge: product.discountPercent
+                        ? `-${Math.round(product.discountPercent)}%`
+                        : null,
+                      badgeColor: product.discountPercent ? 'danger' : 'primary',
+                    };
+
+                    return (
+                      <ProductCard
+                        key={product.id}
+                        product={mappedProduct}
+                        variant={viewMode === 'list' ? 'horizontal' : 'default'}
+                      />
+                    );
+                  })}
                 </div>
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-10">
-                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} className="btn-secondary btn-sm disabled:opacity-40">
-                      <HiChevronLeft className="w-4 h-4" />
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 rounded-xl text-body-sm font-medium transition-all ${currentPage === page ? 'bg-blue-500 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}>
-                        {page}
-                      </button>
-                    ))}
-                    <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="btn-secondary btn-sm disabled:opacity-40">
-                      <HiChevronRight className="w-4 h-4" />
-                    </button>
+                  <div className="mt-10 flex justify-center">
+                    <Pagination
+                      page={currentPage}
+                      count={paginationCount}
+                      pageSize={ITEMS_PER_PAGE}
+                      onPageChange={(p) => setCurrentPage(p)}
+                    />
                   </div>
                 )}
               </>

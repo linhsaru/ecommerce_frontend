@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     HiOutlineCpuChip,
     HiOutlineComputerDesktop,
@@ -9,45 +9,228 @@ import {
     HiOutlineMinus,
     HiOutlineShoppingCart
 } from 'react-icons/hi2';
+import { X, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { apiService } from '../../services';
+import { useCartStore } from '../../store/cartStore';
+import { useCategoryStore } from '../../store/categoryStore';
 import { AIBuilder } from '../../components/shop';
+import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
 import { useTranslation } from '../../context/LanguageContext';
 
-const categories = [
-    { id: 'cpu', name: 'Vi xử lý (CPU)', icon: 'processor' },
-    { id: 'mainboard', name: 'Bo mạch chủ', icon: 'motherboard' },
-    { id: 'ram', name: 'RAM bộ nhớ trong', icon: 'memory' },
-    { id: 'vga', name: 'VGA - Card màn hình', icon: 'graphics' },
-    { id: 'ssd', name: 'Ổ cứng SSD', icon: 'ssd' },
-    { id: 'hdd', name: 'Ổ cứng HDD', icon: 'hdd' },
-    { id: 'psu', name: 'Nguồn máy tính', icon: 'power' },
-    { id: 'case', name: 'Vỏ Case', icon: 'case' },
-    { id: 'cooler', name: 'Tản nhiệt', icon: 'fan' },
-    { id: 'monitor', name: 'Màn hình', icon: 'display' },
+const BUILD_COMPONENTS = [
+    { id: 'cpu', name: 'Vi xử lý (CPU)', icon: 'processor', keywords: ['cpu', 'vi xu ly', 'bo vi xu ly', 'processor'] },
+    { id: 'mainboard', name: 'Bo mạch chủ', icon: 'motherboard', keywords: ['mainboard', 'bo mach chu', 'motherboard'] },
+    { id: 'ram', name: 'RAM bộ nhớ trong', icon: 'memory', keywords: ['ram', 'bo nho trong', 'memory'] },
+    { id: 'vga', name: 'VGA - Card màn hình', icon: 'graphics', keywords: ['vga', 'gpu', 'card man hinh', 'graphics'] },
+    { id: 'ssd', name: 'Ổ cứng SSD', icon: 'ssd', keywords: ['ssd', 'o cung ssd', 'nvme'] },
+    { id: 'hdd', name: 'Ổ cứng HDD', icon: 'hdd', keywords: ['hdd', 'o cung hdd'] },
+    { id: 'psu', name: 'Nguồn máy tính', icon: 'power', keywords: ['psu', 'nguon', 'power supply', 'bo nguon'] },
+    { id: 'case', name: 'Vỏ Case', icon: 'case', keywords: ['case', 'vo may tinh', 'thung may'] },
+    { id: 'cooler', name: 'Tản nhiệt', icon: 'fan', keywords: ['tan nhiet', 'cooler', 'fan'] },
+    { id: 'monitor', name: 'Màn hình', icon: 'display', keywords: ['man hinh', 'monitor', 'display'] },
 ];
 
-// Mock selected items for demonstration
-const initialSelectedItems = {
-    cpu: {
-        id: 1,
-        name: 'CPU Intel Core i9-14900K (Up To 6.0GHz, 24 Nhân 32 Luồng, 36MB Cache, Raptor Lake Refresh)',
-        price: 15390000,
-        quantity: 1,
-        image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=150&h=150&fit=crop&q=80',
-        warranty: '36 Tháng',
-    },
-    vga: {
-        id: 2,
-        name: 'Card Màn Hình NVIDIA GeForce RTX 4090 24GB GDDR6X',
-        price: 52990000,
-        quantity: 1,
-        image: 'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=150&h=150&fit=crop&q=80',
-        warranty: '36 Tháng',
-    }
+const normalizeText = (value) =>
+    (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+const mapComponentsToRelatedCategories = (components, apiCategories) =>
+    components.map((component) => {
+        const related = apiCategories.filter((cat) => {
+            const text = `${normalizeText(cat?.name)} ${normalizeText(cat?.slug)}`;
+            return component.keywords.some((keyword) => text.includes(normalizeText(keyword)));
+        });
+
+        return {
+            ...component,
+            relatedCategorySlugs: related.map((cat) => cat.slug).filter(Boolean),
+        };
+    });
+
+const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, formatCurrency }) => {
+    const [products, setProducts] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        if (!isOpen || !category) return;
+        const fetchParts = async () => {
+            setIsLoading(true);
+            try {
+                const categorySlugs = Array.isArray(category.relatedCategorySlugs)
+                    ? category.relatedCategorySlugs
+                    : [];
+
+                if (categorySlugs.length === 0) {
+                    setProducts([]);
+                    return;
+                }
+
+                const responses = await Promise.all(
+                    categorySlugs.map((slug) =>
+                        apiService.get('/products/by-category/' + slug, {
+                            params: { page: 1, pageSize: 150, status: 1 }
+                        })
+                    )
+                );
+
+                const merged = [];
+                responses.forEach(({ data: res }) => {
+                    const root = res?.data ?? res;
+                    const payload = root?.data ?? root;
+                    const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+                    merged.push(...items);
+                });
+
+                const deduped = Array.from(new Map(merged.map((item) => [item.id, item])).values());
+                setProducts(deduped);
+            } catch (err) {
+                console.error(err);
+                setProducts([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchParts();
+    }, [isOpen, category]);
+
+    if (!isOpen || !category) return null;
+
+    const filteredProducts = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
+            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-fade-in-up">
+                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                    <h3 className="text-xl font-bold text-slate-800">Chọn {category.name}</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="relative max-w-md">
+                        <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm linh kiện..."
+                            value={search} onChange={e => setSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                        />
+                    </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                    {isLoading ? (
+                        <div className="py-20 flex flex-col items-center justify-center text-slate-500 space-y-4">
+                            <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                            <p className="font-medium">Đang tải danh sách linh kiện...</p>
+                        </div>
+                    ) : filteredProducts.length === 0 ? (
+                        <div className="py-20 text-center flex flex-col items-center">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                <Search className="w-6 h-6 text-slate-400" />
+                            </div>
+                            <h4 className="text-lg font-semibold text-slate-800 mb-1">Không tìm thấy linh kiện</h4>
+                            <p className="text-slate-500">Không có sản phẩm trong danh mục liên quan hoặc thử từ khóa khác.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {filteredProducts.map(p => (
+                                <div key={p.id} className="flex items-center gap-4 p-3 border border-slate-100 rounded-2xl hover:border-blue-300 hover:shadow-md transition-all group bg-white">
+                                    <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-xl p-1.5 flex-shrink-0">
+                                        <img src={p.thumbnailUrl || p.imageProduct?.[0]?.url || 'https://via.placeholder.com/150'} alt="" className="w-full h-full object-contain mix-blend-multiply" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-slate-800 text-sm leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors" title={p.name}>{p.name}</h4>
+                                        <div className="mt-1 flex items-center gap-2">
+                                            <span className="text-xs text-slate-500 max-w-[120px] truncate">Hãng: {p.brandName || 'Oem'}</span>
+                                            {p.status === 1 && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>}
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-red-500 font-bold text-sm select-all">{formatCurrency(p.discountedPrice ?? p.originalPrice ?? 0)}</span>
+                                            <button
+                                                onClick={() => onSelectProduct(p)}
+                                                className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                            >
+                                                Thêm
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const BuildPCPage = () => {
     const { t } = useTranslation();
-    const [selectedItems, setSelectedItems] = useState(initialSelectedItems);
+    const navigate = useNavigate();
+    const addToCart = useCartStore(state => state.addItem);
+    const { items: categoryItems, fetchCategories } = useCategoryStore();
+    const [selectedItems, setSelectedItems] = useState({});
+    const [activeCategory, setActiveCategory] = useState(null);
+    const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'success' });
+
+    useEffect(() => {
+        fetchCategories().catch((error) => {
+            console.error('Failed to load categories', error);
+        });
+    }, [fetchCategories]);
+
+    const categories = useMemo(
+        () => mapComponentsToRelatedCategories(BUILD_COMPONENTS, categoryItems),
+        [categoryItems]
+    );
+
+    const showToast = (message, status = 'success') => {
+        setToastConfig({ isVisible: true, message, status });
+    };
+
+    const handleAddToCart = () => {
+        const items = Object.values(selectedItems);
+        if (items.length === 0) {
+            showToast(`${t('please_select_at_least_one_component')}`, 'warning');
+            return;
+        }
+        items.forEach(item => addToCart(item, item.quantity));
+        showToast(`${t('added_to_cart_successfully')}`, 'success');
+    };
+
+    const handleBuyNow = () => {
+        const items = Object.values(selectedItems);
+        if (items.length === 0) {
+            showToast(`${t('please_select_at_least_one_component')}`, 'warning');
+            return;
+        }
+        items.forEach(item => addToCart(item, item.quantity));
+        navigate('/checkout');
+    };
+
+    const handleSelectProduct = (product) => {
+        if (!activeCategory) return;
+        const mappedProduct = {
+            id: product.id,
+            name: product.name,
+            price: product.discountedPrice ?? product.originalPrice ?? 0,
+            quantity: 1,
+            image: product.thumbnailUrl || product.imageProduct?.[0]?.url || 'https://via.placeholder.com/150',
+            warranty: '36 Tháng',
+        };
+        setSelectedItems(prev => ({
+            ...prev,
+            [activeCategory.id]: mappedProduct
+        }));
+        setActiveCategory(null);
+    };
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -201,7 +384,10 @@ const BuildPCPage = () => {
                                                     </div>
                                                     <span className="text-sm">{t('please_select_component')}</span>
                                                 </div>
-                                                <button className="flex justify-center items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl font-medium transition-colors w-full sm:w-auto group">
+                                                <button
+                                                    onClick={() => setActiveCategory(cat)}
+                                                    className="flex justify-center items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl font-medium transition-colors w-full sm:w-auto group"
+                                                >
                                                     <HiOutlinePlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
                                                     Chọn {cat.name.split(' ')[0]}
                                                 </button>
@@ -240,9 +426,12 @@ const BuildPCPage = () => {
                             </div>
 
                             <div className="space-y-3">
-                                <button className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md shadow-blue-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                                <button
+                                    onClick={handleAddToCart}
+                                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md shadow-blue-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                                >
                                     <HiOutlineShoppingCart className="w-5 h-5" />
-                                    Thêm vào giỏ hàng
+                                    {t('add_to_cart')}
                                 </button>
                             </div>
                         </div>
@@ -254,15 +443,33 @@ const BuildPCPage = () => {
             <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] p-4 pb-safe">
                 <div className="container-custom flex items-center justify-between gap-4">
                     <div>
-                        <div className="text-xs text-slate-500 mb-0.5">Tổng tiền ({Object.keys(selectedItems).length} SP):</div>
+                        <div className="text-xs text-slate-500 mb-0.5">{t('total_price')}: {formatCurrency(calculateTotal())}</div>
                         <div className="text-xl font-bold text-red-500 leading-none">{formatCurrency(calculateTotal())}</div>
                     </div>
-                    <button className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md shadow-blue-500/30 transition-all flex items-center justify-center gap-2 max-w-[200px]">
+                    <button
+                        onClick={handleBuyNow}
+                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-md shadow-blue-500/30 transition-all flex items-center justify-center gap-2 max-w-[200px]"
+                    >
                         <HiOutlineShoppingCart className="w-5 h-5" />
-                        Mua ngay
+                        {t('buy_now')}
                     </button>
                 </div>
             </div>
+
+            <PartSelectionModal
+                isOpen={!!activeCategory}
+                category={activeCategory}
+                onClose={() => setActiveCategory(null)}
+                onSelectProduct={handleSelectProduct}
+                formatCurrency={formatCurrency}
+            />
+
+            <ToastNotification
+                isVisible={toastConfig.isVisible}
+                message={toastConfig.message}
+                status={toastConfig.status}
+                onClose={() => setToastConfig(p => ({ ...p, isVisible: false }))}
+            />
         </div>
     );
 };

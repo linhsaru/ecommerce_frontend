@@ -25,9 +25,20 @@ const handleTokenExpired = async (accessToken) => {
 apiConfig.interceptors.request.use(
   async (config) => {
     const userSession = sessionStorage.getItem('userSession');
-    if (userSession) {
-      handleTokenExpired(JSON.parse(userSession).accessToken);
-      config.headers.Authorization = `Bearer ${JSON.parse(userSession).accessToken}`;
+    const accessTokenFromSession = sessionStorage.getItem('accessToken');
+    let accessToken = accessTokenFromSession;
+
+    if (!accessToken && userSession) {
+      try {
+        accessToken = JSON.parse(userSession)?.accessToken;
+      } catch (error) {
+        console.error('Invalid userSession format:', error);
+      }
+    }
+
+    if (accessToken) {
+      handleTokenExpired(accessToken);
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },

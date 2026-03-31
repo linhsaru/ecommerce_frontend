@@ -1,6 +1,10 @@
+import { formatVnd } from '../../utils/price';
+
 const PriceDisplay = ({ price, discountPrice, size = 'md', showDiscount = true, className = '' }) => {
   const hasDiscount = discountPrice && discountPrice < price;
   const discountPercent = hasDiscount ? Math.round(((price - discountPrice) / price) * 100) : 0;
+
+
 
   const sizes = {
     sm: { current: 'text-body-sm font-semibold', original: 'text-caption', badge: 'text-[10px] px-1.5 py-0.5' },
@@ -14,12 +18,12 @@ const PriceDisplay = ({ price, discountPrice, size = 'md', showDiscount = true, 
   return (
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
       <span className={`${s.current} ${hasDiscount ? 'text-danger-600' : 'text-neutral-900'}`}>
-        ${(hasDiscount ? discountPrice : price).toFixed(2)}
+        {formatVnd(hasDiscount ? discountPrice : price)}
       </span>
       {hasDiscount && (
         <>
           <span className={`${s.original} text-neutral-400 line-through`}>
-            ${price.toFixed(2)}
+            {formatVnd(price)}
           </span>
           {showDiscount && (
             <span className={`${s.badge} bg-danger-50 text-danger-600 rounded-full font-semibold`}>

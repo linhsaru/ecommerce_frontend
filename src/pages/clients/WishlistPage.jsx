@@ -9,10 +9,12 @@ import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
 import { PriceDisplay, StarRating, ProductCard } from '../../components/shop';
 import { products } from '../../data/mockData';
+import { useTranslation } from '../../context/LanguageContext';
 
 const WishlistPage = () => {
   const { items, removeItem, clearWishlist } = useWishlistStore();
   const addToCart = useCartStore((state) => state.addItem);
+  const { t } = useTranslation();
 
   const suggestedProducts = products
     .filter((p) => !items.find((i) => i.id === p.id))
@@ -31,19 +33,19 @@ const WishlistPage = () => {
             <div className="w-24 h-24 mx-auto mb-6 bg-neutral-100 rounded-full flex items-center justify-center">
               <HiOutlineHeart className="w-10 h-10 text-neutral-400" />
             </div>
-            <h1 className="text-display-sm text-neutral-900 mb-3">Your wishlist is empty</h1>
+            <h1 className="text-display-sm text-neutral-900 mb-3">{t('wishlist_empty_title')}</h1>
             <p className="text-body-md text-neutral-500 mb-8">
-              Save items you love to your wishlist. Review them anytime and easily move them to your cart.
+              {t('wishlist_empty_desc')}
             </p>
             <Link to="/products" className="btn-primary btn-lg">
-              Explore Products
+              {t('wishlist_explore')}
               <HiOutlineArrowRight className="w-5 h-5" />
             </Link>
           </div>
 
           {suggestedProducts.length > 0 && (
             <div className="mt-20">
-              <h2 className="text-heading-lg text-neutral-900 mb-6">Popular Products</h2>
+              <h2 className="text-heading-lg text-neutral-900 mb-6">{t('wishlist_popular')}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {suggestedProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
@@ -62,9 +64,9 @@ const WishlistPage = () => {
       <div className="bg-white border-b border-neutral-100">
         <div className="container-custom py-3">
           <nav className="flex items-center gap-2 text-caption text-neutral-500">
-            <Link to="/" className="hover:text-primary-600 transition-colors">Home</Link>
+            <Link to="/" className="hover:text-primary-600 transition-colors">{t('home')}</Link>
             <span>/</span>
-            <span className="text-neutral-800 font-medium">Wishlist</span>
+            <span className="text-neutral-800 font-medium">{t('wishlist_title')}</span>
           </nav>
         </div>
       </div>
@@ -72,15 +74,15 @@ const WishlistPage = () => {
       <div className="container-custom py-8 md:py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-display-sm text-neutral-900 mb-1">My Wishlist</h1>
-            <p className="text-body-md text-neutral-500">{items.length} item{items.length !== 1 ? 's' : ''} saved</p>
+            <h1 className="text-display-sm text-neutral-900 mb-1">{t('wishlist_title')}</h1>
+            <p className="text-body-md text-neutral-500">{items.length} {t('wishlist_items_saved')}</p>
           </div>
           <button
             onClick={clearWishlist}
             className="btn-ghost text-danger-600 hover:text-danger-700 hover:bg-danger-50"
           >
             <HiOutlineTrash className="w-4 h-4" />
-            Clear All
+            {t('wishlist_clear')}
           </button>
         </div>
 
@@ -120,7 +122,7 @@ const WishlistPage = () => {
                   className="btn-primary btn-sm flex-1"
                 >
                   <HiOutlineShoppingBag className="w-4 h-4" />
-                  Move to Cart
+                  {t('wishlist_move_to_cart')}
                 </button>
                 <button
                   onClick={() => removeItem(item.id)}
@@ -136,7 +138,7 @@ const WishlistPage = () => {
         {/* Suggested Products */}
         {suggestedProducts.length > 0 && (
           <div className="mt-16">
-            <h2 className="text-heading-lg text-neutral-900 mb-6">You might also like</h2>
+            <h2 className="text-heading-lg text-neutral-900 mb-6">{t('wishlist_you_might_like')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {suggestedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />

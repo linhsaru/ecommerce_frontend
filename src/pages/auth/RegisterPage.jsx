@@ -10,16 +10,20 @@ import {
   HiOutlineUser,
 } from 'react-icons/hi2';
 import { useAuthStore } from '../../store/authStore';
+import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
+import logo from '../../assets/images/logo.png';
 
 const RegisterPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { register, isLoading, error } = useAuthStore();
+  const { register, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'info' });
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
+    userName: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
   });
@@ -29,24 +33,65 @@ const RegisterPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    if (name === 'userName') {
+      setFormData((prev) => ({ ...prev, userName: value.trim() }));
+    }
+  };
+
+  const showToast = (message, status = 'info') => {
+    setToastConfig({ isVisible: true, message, status });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert(t('passwords_dont_match'));
+    setToastConfig((prev) => ({ ...prev, isVisible: false }));
+    const payload = {
+      fullName: formData.fullName.trim(),
+      userName: formData.userName.trim(),
+      email: formData.email.trim(),
+      phoneNumber: formData.phoneNumber.trim(),
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+    };
+
+    if (!payload.fullName) {
+      showToast('Vui lòng nhập họ và tên.', 'warning');
+      return;
+    }
+
+    if (!payload.userName) {
+      showToast('Vui lòng nhập username.', 'warning');
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9._]{3,30}$/.test(payload.userName)) {
+      showToast('Username phải từ 3-30 ký tự và chỉ gồm chữ, số, dấu chấm, dấu gạch dưới.', 'warning');
+      return;
+    }
+
+    if (!/^(0|\+84)\d{9}$/.test(payload.phoneNumber)) {
+      showToast('Số điện thoại không hợp lệ.', 'warning');
+      return;
+    }
+
+    if (payload.password.length < 8) {
+      showToast('Mật khẩu phải có ít nhất 8 ký tự.', 'warning');
+      return;
+    }
+
+    if (payload.password !== payload.confirmPassword) {
+      showToast(t('passwords_dont_match'), 'warning');
       return;
     }
 
     try {
-      await register({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password
-      });
+      await register(payload);
       navigate('/');
     } catch (err) {
       console.error(err);
-      alert('Registration failed: ' + (err.message || err));
+      showToast('Đăng ký thất bại: ' + (err?.message || err), 'error');
     }
   };
 
@@ -77,11 +122,11 @@ const RegisterPage = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-soft-md">
-              <span className="text-white font-bold text-heading-sm">S</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-soft-sm bg-white overflow-hidden p-0.5">
+              <img src={logo} alt="LH Computer Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="text-display-sm text-neutral-900 tracking-tight">
-              Store<span className="text-primary-600">.</span>
+            <span className="text-heading-lg text-neutral-900 tracking-tight">
+              LH Computer<span className="text-primary-600">.</span>
             </span>
           </Link>
           <h1 className="text-display-sm text-neutral-900 mb-2">{t('create_an_account')}</h1>
@@ -90,6 +135,12 @@ const RegisterPage = () => {
 
         {/* Form Card */}
         <div className="card p-8">
+          <ToastNotification
+            message={toastConfig.message}
+            status={toastConfig.status}
+            isVisible={toastConfig.isVisible}
+            onClose={() => setToastConfig((prev) => ({ ...prev, isVisible: false }))}
+          />
           {/* Social Login */}
           <div className="space-y-3 mb-6">
             <button className="btn-secondary w-full justify-center">
@@ -115,31 +166,34 @@ const RegisterPage = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-body-sm font-medium text-neutral-700 mb-1.5">{t('first_name')}</label>
-                <div className="relative">
-                  <HiOutlineUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="input pl-10"
-                    placeholder="John"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-body-sm font-medium text-neutral-700 mb-1.5">{t('last_name')}</label>
+            <div>
+              <label className="block text-body-sm font-medium text-neutral-700 mb-1.5">{t('account_full_name')}</label>
+              <div className="relative">
+                <HiOutlineUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
                 <input
                   type="text"
-                  name="lastName"
-                  value={formData.lastName}
+                  name="fullName"
+                  value={formData.fullName}
                   onChange={handleChange}
-                  className="input"
-                  placeholder="Doe"
+                  className="input pl-10"
+                  placeholder="Nguyen Dinh Linh"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-body-sm font-medium text-neutral-700 mb-1.5">{t('account_username')}</label>
+              <div className="relative">
+                <HiOutlineUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                <input
+                  type="text"
+                  name="userName"
+                  value={formData.userName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className="input pl-10"
+                  placeholder="linhdeptrai"
                   required
                 />
               </div>
@@ -156,6 +210,23 @@ const RegisterPage = () => {
                   onChange={handleChange}
                   className="input pl-10"
                   placeholder="you@example.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-body-sm font-medium text-neutral-700 mb-1.5">{t('account_phone')}</label>
+              <div className="relative">
+                <HiOutlineUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-neutral-400" />
+                <input
+                  type="tel"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  pattern="^(0|\+84)\d{9}$"
+                  className="input pl-10"
+                  placeholder="0912892178"
                   required
                 />
               </div>

@@ -1,113 +1,240 @@
-import { Link } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+  HiOutlineMagnifyingGlass,
+  HiOutlineShoppingBag,
+  HiOutlineHeart,
+  HiOutlineUser,
+  HiOutlineBars3,
+  HiOutlineXMark,
+  HiOutlineArrowRightOnRectangle,
+} from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
-import Button from '../common/Button';
+import { useWishlistStore } from '../../store/wishlistStore';
+import { useAuthStore } from '../../store/authStore';
+import { useTranslation } from '../../context/LanguageContext';
+import LanguageSwitcher from '../LanguageSwitcher';
+import logo from '../../assets/images/logo.png';
 
 const Header = () => {
+  const { t } = useTranslation();
   const { user, logout } = useAuthStore();
-  const { items } = useCartStore();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const location = useLocation();
+  const cartItemCount = useCartStore((state) => state.itemCount);
+  const wishlistItems = useWishlistStore((state) => state.items);
 
-  const cartItemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const displayName =
+    user?.username || '';
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
+
+  const navLinks = [
+    { nameKey: 'home', path: '/' },
+    { nameKey: 'shop', path: '/products' },
+    { nameKey: 'news', path: '/news' },
+    { nameKey: 'buildpc', path: '/build-pc' }
+  ];
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link to="/" className="text-2xl font-bold text-gray-900">
-              ECommerce
-            </Link>
-          </div>
+    <>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            <Link
-              to="/"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-            >
-              Home
-            </Link>
-            <Link
-              to="/products"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-            >
-              Products
-            </Link>
-            <Link
-              to="/categories"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-            >
-              Categories
-            </Link>
-            <Link
-              to="/about"
-              className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-            >
-              About
-            </Link>
-          </nav>
+      {/* Main navbar */}
+      <nav className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled
+        ? 'bg-white/95 backdrop-blur-xl shadow-soft-md border-b border-neutral-100/50'
+        : 'bg-white border-b border-neutral-100'
+        }`}>
+        <div className="container-custom">
+          <div className="flex items-center justify-between h-16 md:h-18">
+            {/* Left: Mobile menu + Logo */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 -ml-2 text-neutral-600 hover:text-neutral-800 transition-colors"
+              >
+                {isMobileMenuOpen ? (
+                  <HiOutlineXMark className="w-6 h-6" />
+                ) : (
+                  <HiOutlineBars3 className="w-6 h-6" />
+                )}
+              </button>
 
-          {/* Right side actions */}
-          <div className="flex items-center space-x-4">
-            {/* Search */}
-            <div className="hidden sm:block">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  className="w-64 pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-soft-sm bg-white overflow-hidden p-0.5">
+                  <img src={logo} alt="LH Computer Logo" className="w-full h-full object-contain" />
+                </div>
+                <span className="text-heading-md text-neutral-900 tracking-tight hidden sm:block">
+                  LH Computer<span className="text-primary-600">.</span>
+                </span>
+              </Link>
             </div>
 
-            {/* Cart */}
-            <Link to="/cart" className="relative p-2 text-gray-700 hover:text-gray-900">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5l2.5 5M9 21a2 2 0 104 0M19 21a2 2 0 104 0" />
-              </svg>
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {cartItemCount}
-                </span>
-              )}
-            </Link>
-
-            {/* User menu */}
-            {user ? (
-              <div className="relative flex items-center space-x-2">
-                <span className="text-sm text-gray-700">{user.name || user.email}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={logout}
+            {/* Center: Nav links */}
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.nameKey}
+                  to={link.path}
+                  className={`px-4 py-2 rounded-xl text-body-sm font-medium transition-all duration-200
+                    ${location.pathname === link.path
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50'
+                    }`}
                 >
-                  Logout
-                </Button>
-              </div>
+                  {t(link.nameKey)}
+                </Link>
+              ))}
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1">
+              {/* Search */}
+              <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="p-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+              >
+                <HiOutlineMagnifyingGlass className="w-5 h-5" />
+              </button>
+
+              {/* Wishlist */}
+              <Link
+                to="/wishlist"
+                className="relative p-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+              >
+                <HiOutlineHeart className="w-5 h-5" />
+                {wishlistItems.length > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 bg-danger-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-scale-in">
+                    {wishlistItems.length}
+                  </span>
+                )}
+              </Link>
+
+              {/* Cart */}
+              <Link
+                to="/cart"
+                className="relative p-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+              >
+                <HiOutlineShoppingBag className="w-5 h-5" />
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-scale-in">
+                    {cartItemCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* User */}
+              {user ? (
+                <div className="flex items-center">
+                  <Link
+                    to="/account"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+                  >
+                    <HiOutlineUser className="w-5 h-5" />
+                    <span className="hidden sm:inline text-body-sm font-medium">
+                      {`Hello ${displayName}`}
+                    </span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="hidden sm:inline-flex items-center p-2.5 rounded-xl text-neutral-600 hover:text-danger-600 hover:bg-danger-50 transition-all duration-200"
+                    title={t('logout')}
+                  >
+                    <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50 transition-all duration-200"
+                >
+                  <HiOutlineUser className="w-5 h-5" />
+                  <span className="hidden sm:inline text-body-sm font-medium">
+                    {t('login')}
+                  </span>
+                </Link>
+              )}
+
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+            </div>
+          </div>
+        </div>
+
+        {/* Search bar */}
+        <div className={`overflow-hidden transition-all duration-300 ease-out ${isSearchOpen ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="container-custom pb-4">
+            <div className="relative">
+              <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+              <input
+                type="text"
+                placeholder={t('search_placeholder')}
+                className="input pl-12 pr-4 py-3 bg-neutral-50 border-neutral-200 rounded-2xl"
+                autoFocus={isSearchOpen}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-out ${isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="container-custom pb-4 space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.nameKey}
+                to={link.path}
+                className={`block px-4 py-3 rounded-xl text-body-sm font-medium transition-all duration-200
+                  ${location.pathname === link.path
+                    ? 'text-primary-600 bg-primary-50'
+                    : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50'
+                  }`}
+              >
+                {t(link.nameKey)}
+              </Link>
+            ))}
+            <div className="divider my-2" />
+            {user ? (
+              <>
+                <Link
+                  to="/account"
+                  className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50"
+                >
+                  Hello {displayName || t('profile')}
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="mt-1 w-full text-left px-2 py-3 rounded-xl text-body-sm font-medium text-danger-600 hover:bg-danger-50 flex items-center gap-2"
+                >
+                  <HiOutlineArrowRightOnRectangle className="w-5 h-5" />
+                </button>
+              </>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Link to="/login">
-                  <Button variant="outline" size="sm">
-                    Login
-                  </Button>
+              <>
+                <Link to="/login" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-neutral-600 hover:text-neutral-800 hover:bg-neutral-50">
+                  {t('login')}
                 </Link>
-                <Link to="/register">
-                  <Button variant="primary" size="sm">
-                    Register
-                  </Button>
+                <Link to="/register" className="block px-4 py-3 rounded-xl text-body-sm font-medium text-primary-600 hover:bg-primary-50">
+                  {t('create_account')}
                 </Link>
-              </div>
+              </>
             )}
           </div>
         </div>
-      </div>
-    </header>
+      </nav>
+    </>
   );
 };
 

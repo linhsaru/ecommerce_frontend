@@ -71,6 +71,7 @@ const TableAdditional = ({
           <Pagination
             page={tableState.page}
             count={filteredData.length}
+            pageSize={tableState.rowsPerPage}
             onPageChange={handlePageChange}
           />
         </TableFooter>

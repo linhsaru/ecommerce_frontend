@@ -18,8 +18,6 @@ const useAuthStore = create(
         try {
           // Call login API
           const { data: response } = await apiService.post('/auth/login', credentials);
-
-          // Some APIs wrap payload inside `data`
           const payload = response?.data ?? response;
 
           const accessToken = payload?.accessToken;
@@ -31,9 +29,13 @@ const useAuthStore = create(
             tokenManager.setTokens(accessToken, refreshToken);
           }
 
+          const tokenUser = tokenManager.getUserFromToken() || {};
+
           const user = {
-            username: username,
-            role: role,
+            username: username || tokenUser.username,
+            role: role || tokenUser.role,
+            id: payload?.id || payload?.userId || tokenUser.id,
+            ...tokenUser
           };
 
           set({
@@ -89,6 +91,11 @@ const useAuthStore = create(
 
         // Clear persisted state
         get().clearPersistedState();
+
+        // Clear cart to ensure logged-in user's cart is not leaked to guest
+        import('./cartStore').then(({ useCartStore }) => {
+          useCartStore.getState().clearCart();
+        });
       },
 
       updateUser: (userData) => {
@@ -118,16 +125,17 @@ const useAuthStore = create(
         }
 
         const tokenUser = tokenManager.getUserFromToken();
+        const existingUser = get().user || {};
+
+        const username = tokenUser?.username
+          || existingUser.username
+          || '';
 
         const user = {
-          username:
-            tokenUser?.username ||
-            tokenUser?.userName ||
-            tokenUser?.unique_name ||
-            tokenUser?.email ||
-            '',
-          role: tokenUser?.role,
+          ...existingUser,
           ...tokenUser,
+          username,
+          role: tokenUser?.role || existingUser.role,
         };
 
         set({
