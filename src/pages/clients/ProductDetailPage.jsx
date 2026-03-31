@@ -29,7 +29,7 @@ const mapApiProductToViewModel = (p) => {
   } else if (p.imageProduct && p.imageProduct.length > 0) {
     images = p.imageProduct.map((img) => img.url);
   } else {
-    
+
     const thumb = p.thumbnailUrl;
     images = [thumb].filter(Boolean);
   }
@@ -58,7 +58,6 @@ const mapApiProductToViewModel = (p) => {
     specifications: {},
     specificationRows: [],
     images: images.length ? images : [],
-    // Backend có thumbnailUrl cho list/related. Giữ lại để ProductCard ưu tiên hiển thị.
     thumbnailUrl: p.thumbnailUrl ?? null,
     usage_tags: [],
   };
@@ -588,7 +587,7 @@ const ProductDetailPage = () => {
               <div className="max-w-3xl">
                 <div className="card overflow-hidden divide-y divide-neutral-100">
                   {(product.specificationRows || []).length === 0 &&
-                  Object.keys(product.specifications || {}).length === 0 ? (
+                    Object.keys(product.specifications || {}).length === 0 ? (
                     <p className="px-5 py-6 text-body-sm text-neutral-500">
                       No specifications listed for this product.
                     </p>
@@ -730,7 +729,7 @@ const ProductDetailPage = () => {
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div>
-            <h2 className="text-heading-lg text-neutral-900 mb-6">You May Also Like</h2>
+            <h2 className="text-heading-lg text-neutral-900 mb-6">{t('related_products')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />

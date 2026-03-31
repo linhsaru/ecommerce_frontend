@@ -140,6 +140,12 @@ const CheckoutPage = () => {
         orderResponse?.data?.id ||
         orderResponse?.id;
 
+      const createdOrderNo =
+        orderResponse?.data?.orderNo ||
+        orderResponse?.orderNo ||
+        orderResponse?.data?.code ||
+        createdOrderId;
+
       if (!createdOrderId) {
         console.error('Không nhận được createdOrderId từ backend:', orderResponse);
         showToast('Lỗi: Không lấy được ID đơn hàng sau khi tạo. Vui lòng kiểm tra lại API tạo đơn hàng.', 'error');
@@ -167,7 +173,7 @@ const CheckoutPage = () => {
         }
       } else {
         await new Promise((r) => setTimeout(r, 1200));
-        setOrderNo(createdOrderId);
+        setOrderNo(createdOrderNo);
         setOrderPlaced(true);
         if (!buyNowItem) {
           clearCart();
@@ -196,6 +202,10 @@ const CheckoutPage = () => {
     };
   };
 
+  useEffect(() => {
+    if (items.length === 0 && !orderPlaced) navigate('/cart');
+  }, [items.length, orderPlaced, navigate]);
+
   if (orderPlaced) {
     return (
       <div className="animate-fade-in min-h-[80vh] flex items-center justify-center">
@@ -205,9 +215,15 @@ const CheckoutPage = () => {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-3">{t('order_placed')}</h1>
           <p className="text-slate-600 mb-2">{t('thank_you_purchase')}</p>
-          <p className="text-sm text-slate-500 mb-8">Order #{orderNo}</p>
+          <p className="text-sm text-slate-500 mb-8">
+            {t('order_number')}: <span className="font-semibold text-slate-800">{orderNo}</span>
+          </p>
           <div className="flex items-center justify-center gap-4">
-            <Link to="/account/orders" className="btn-secondary">{t('view_orders')}</Link>
+            {isAuthenticated ? (
+              <Link to="/account/orders" className="btn-secondary">{t('view_orders')}</Link>
+            ) : (
+              <Link to={`/order-lookup/${orderNo}`} className="btn-secondary">{t('lookup_order')}</Link>
+            )}
             <Link to="/products" className="btn-primary">
               {t('continue_shopping')} <HiOutlineArrowRight className="w-4 h-4" />
             </Link>
@@ -217,9 +233,7 @@ const CheckoutPage = () => {
     );
   }
 
-  useEffect(() => {
-    if (items.length === 0 && !orderPlaced) navigate('/cart');
-  }, [items.length, orderPlaced, navigate]);
+
 
   if (items.length === 0 && !orderPlaced) return null;
 

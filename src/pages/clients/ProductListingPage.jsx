@@ -14,11 +14,13 @@ import { apiService } from '../../services';
 import { useCategoryStore } from '../../store/categoryStore';
 import { sortOptions, usagePurposes } from '../../data/mockData';
 import { formatVnd } from '../../utils/price';
+import { useTranslation } from '../../context/LanguageContext';
 
 const ITEMS_PER_PAGE = 20;
 const LARGE_FETCH_PAGE_SIZE = 500;
 
 const ProductListingPage = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const categoryFromUrl = searchParams.get('category') || '';
   const { items: categories, fetchCategories } = useCategoryStore();
@@ -297,7 +299,7 @@ const ProductListingPage = () => {
 
       <div className="container-custom py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">PC Components</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('product_listing')}</h1>
           <p className="text-slate-500 text-sm mt-0.5">{productCountLabel} products found</p>
         </div>
 

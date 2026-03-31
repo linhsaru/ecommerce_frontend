@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     HiOutlineCpuChip,
     HiOutlineComputerDesktop,
@@ -13,22 +13,45 @@ import { X, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services';
 import { useCartStore } from '../../store/cartStore';
+import { useCategoryStore } from '../../store/categoryStore';
 import { AIBuilder } from '../../components/shop';
 import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
 import { useTranslation } from '../../context/LanguageContext';
 
-const categories = [
-    { id: 'cpu', slug: 'cpu', name: 'Vi xử lý (CPU)', icon: 'processor' },
-    { id: 'mainboard', slug: 'mainboard', name: 'Bo mạch chủ', icon: 'motherboard' },
-    { id: 'ram', slug: 'ram', name: 'RAM bộ nhớ trong', icon: 'memory' },
-    { id: 'vga', slug: 'vga', name: 'VGA - Card màn hình', icon: 'graphics' },
-    { id: 'ssd', slug: 'ssd', name: 'Ổ cứng SSD', icon: 'ssd' },
-    { id: 'hdd', slug: 'hdd', name: 'Ổ cứng HDD', icon: 'hdd' },
-    { id: 'psu', slug: 'psu', name: 'Nguồn máy tính', icon: 'power' },
-    { id: 'case', slug: 'case', name: 'Vỏ Case', icon: 'case' },
-    { id: 'cooler', slug: 'cooler', name: 'Tản nhiệt', icon: 'fan' },
-    { id: 'monitor', slug: 'monitor', name: 'Màn hình', icon: 'display' },
+const BUILD_COMPONENTS = [
+    { id: 'cpu', name: 'Vi xử lý (CPU)', icon: 'processor', keywords: ['cpu', 'vi xu ly', 'bo vi xu ly', 'processor'] },
+    { id: 'mainboard', name: 'Bo mạch chủ', icon: 'motherboard', keywords: ['mainboard', 'bo mach chu', 'motherboard'] },
+    { id: 'ram', name: 'RAM bộ nhớ trong', icon: 'memory', keywords: ['ram', 'bo nho trong', 'memory'] },
+    { id: 'vga', name: 'VGA - Card màn hình', icon: 'graphics', keywords: ['vga', 'gpu', 'card man hinh', 'graphics'] },
+    { id: 'ssd', name: 'Ổ cứng SSD', icon: 'ssd', keywords: ['ssd', 'o cung ssd', 'nvme'] },
+    { id: 'hdd', name: 'Ổ cứng HDD', icon: 'hdd', keywords: ['hdd', 'o cung hdd'] },
+    { id: 'psu', name: 'Nguồn máy tính', icon: 'power', keywords: ['psu', 'nguon', 'power supply', 'bo nguon'] },
+    { id: 'case', name: 'Vỏ Case', icon: 'case', keywords: ['case', 'vo may tinh', 'thung may'] },
+    { id: 'cooler', name: 'Tản nhiệt', icon: 'fan', keywords: ['tan nhiet', 'cooler', 'fan'] },
+    { id: 'monitor', name: 'Màn hình', icon: 'display', keywords: ['man hinh', 'monitor', 'display'] },
 ];
+
+const normalizeText = (value) =>
+    (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+const mapComponentsToRelatedCategories = (components, apiCategories) =>
+    components.map((component) => {
+        const related = apiCategories.filter((cat) => {
+            const text = `${normalizeText(cat?.name)} ${normalizeText(cat?.slug)}`;
+            return component.keywords.some((keyword) => text.includes(normalizeText(keyword)));
+        });
+
+        return {
+            ...component,
+            relatedCategorySlugs: related.map((cat) => cat.slug).filter(Boolean),
+        };
+    });
 
 const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, formatCurrency }) => {
     const [products, setProducts] = useState([]);
@@ -40,13 +63,33 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
         const fetchParts = async () => {
             setIsLoading(true);
             try {
-                const { data: res } = await apiService.get('/products/by-category/' + category.slug, {
-                    params: { page: 1, pageSize: 150, status: 1 }
+                const categorySlugs = Array.isArray(category.relatedCategorySlugs)
+                    ? category.relatedCategorySlugs
+                    : [];
+
+                if (categorySlugs.length === 0) {
+                    setProducts([]);
+                    return;
+                }
+
+                const responses = await Promise.all(
+                    categorySlugs.map((slug) =>
+                        apiService.get('/products/by-category/' + slug, {
+                            params: { page: 1, pageSize: 150, status: 1 }
+                        })
+                    )
+                );
+
+                const merged = [];
+                responses.forEach(({ data: res }) => {
+                    const root = res?.data ?? res;
+                    const payload = root?.data ?? root;
+                    const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+                    merged.push(...items);
                 });
-                const root = res?.data ?? res;
-                const payload = root?.data ?? root;
-                const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
-                setProducts(items);
+
+                const deduped = Array.from(new Map(merged.map((item) => [item.id, item])).values());
+                setProducts(deduped);
             } catch (err) {
                 console.error(err);
                 setProducts([]);
@@ -93,7 +136,7 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
                                 <Search className="w-6 h-6 text-slate-400" />
                             </div>
                             <h4 className="text-lg font-semibold text-slate-800 mb-1">Không tìm thấy linh kiện</h4>
-                            <p className="text-slate-500">Mã phân loại '{category.slug}' không có sản phẩm hoặc thử từ khóa khác.</p>
+                            <p className="text-slate-500">Không có sản phẩm trong danh mục liên quan hoặc thử từ khóa khác.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -132,9 +175,21 @@ const BuildPCPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const addToCart = useCartStore(state => state.addItem);
+    const { items: categoryItems, fetchCategories } = useCategoryStore();
     const [selectedItems, setSelectedItems] = useState({});
     const [activeCategory, setActiveCategory] = useState(null);
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'success' });
+
+    useEffect(() => {
+        fetchCategories().catch((error) => {
+            console.error('Failed to load categories', error);
+        });
+    }, [fetchCategories]);
+
+    const categories = useMemo(
+        () => mapComponentsToRelatedCategories(BUILD_COMPONENTS, categoryItems),
+        [categoryItems]
+    );
 
     const showToast = (message, status = 'success') => {
         setToastConfig({ isVisible: true, message, status });

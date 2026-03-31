@@ -151,8 +151,18 @@ export default {
   specifications: "Thông số kỹ thuật",
   reviews: "Đánh giá",
   related_products: "Sản phẩm liên quan",
-
+  product_listing: "Danh sách sản phẩm",
   address_detail: "Địa chỉ chi tiết",
+  loading_categories: "Đang tải danh mục linh kiện...",
+  no_categories_to_display: "Không có danh mục linh kiện để hiển thị.",
+  lookup_order: "Tra cứu đơn hàng",
+  lookup_order_desc: "Nhập mã đơn hàng để kiểm tra trạng thái hiện tại và chi tiết.",
+  enter_order_number: "Nhập mã đơn hàng (ví dụ: ORD-12345)",
+  order_not_found: "Không tìm thấy đơn hàng",
+  error_occurred: "Đã xảy ra lỗi",
+  order_number: "Mã đơn hàng",
+  total_amount: "Tổng tiền",
+  order_items: "Sản phẩm trong đơn hàng",
 
   // Footer
   footer_stay_in_loop: 'Đăng ký nhận tin',

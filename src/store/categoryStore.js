@@ -5,10 +5,6 @@ export const useCategoryStore = create((set, get) => ({
   // State
   items: [],
   selectedCategory: null,
-  totalItems: 0,
-  totalPages: 0,
-  page: 1,
-  pageSize: 200,
   search: '',
   isLoading: false,
   error: null,
@@ -18,9 +14,7 @@ export const useCategoryStore = create((set, get) => ({
   setPage: (page) => set({ page }),
 
   fetchCategories: async (options = {}) => {
-    const { page, pageSize, search, parentId } = {
-      page: get().page,
-      pageSize: 200,
+    const { search, parentId } = {
       search: get().search,
       parentId: null,
       ...options,
@@ -31,8 +25,6 @@ export const useCategoryStore = create((set, get) => ({
     try {
       const { data: response } = await apiService.get('/categories', {
         params: {
-          page,
-          pageSize,
           search: search || undefined,
           parentId: parentId || undefined,
         },
@@ -48,10 +40,6 @@ export const useCategoryStore = create((set, get) => ({
 
       set({
         items,
-        totalItems: payload?.totalItems || items.length,
-        totalPages: payload?.totalPages || 1,
-        page,
-        pageSize: 200,
         search,
         isLoading: false,
         error: null,

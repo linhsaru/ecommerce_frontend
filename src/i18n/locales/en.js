@@ -298,6 +298,17 @@ export default {
   account_notif_price_drops: 'Price drops',
   account_notif_price_drops_desc: 'Alerts when wishlist items go on sale',
   all: 'All',
+  product_listing: "Product Listing",
+  loading_categories: "Loading categories...",
+  no_categories_to_display: "No categories to display.",
+  lookup_order: "Order Lookup",
+  lookup_order_desc: "Enter your order number to check current status and details.",
+  enter_order_number: "Enter order number",
+  order_not_found: "Order not found",
+  error_occurred: "An error occurred",
+  order_number: "Order Number",
+  total_amount: "Total Amount",
+  order_items: "Items In Your Order",
 
   // Home Page
   popular: 'Popular',

@@ -15,6 +15,7 @@ const VNPayReturnPage = lazy(() => import('../../pages/clients/VNPayReturnPage')
 const LoginPage = lazy(() => import('../../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../../pages/auth/RegisterPage'));
 const TechNewsPage = lazy(() => import('../../pages/clients/TechNewsPage'));
+const OrderLookupPage = lazy(() => import('../../pages/clients/OrderLookupPage'));
 
 export const PublicRoute = ({ isAuthenticated, children }) => {
   return isAuthenticated ? <Navigate to="/app" /> : children;
@@ -75,6 +76,14 @@ const publicRoutes = [
       {
         path: '/build-pc',
         element: <BuildPCPage />
+      },
+      {
+        path: '/order-lookup',
+        element: <OrderLookupPage />
+      },
+      {
+        path: '/order-lookup/:orderNo',
+        element: <OrderLookupPage />
       }
     ],
   },

@@ -19,23 +19,23 @@ const Footer = () => {
       { nameKey: 'footer_gift_cards', path: '/gift-cards' },
     ],
     support: [
-      { nameKey: 'footer_help_center', path: '/help' },
-      { nameKey: 'footer_shipping_info', path: '/shipping' },
-      { nameKey: 'footer_returns', path: '/returns' },
-      { nameKey: 'footer_order_tracking', path: '/tracking' },
-      { nameKey: 'footer_contact', path: '/contact' },
+      { nameKey: 'footer_help_center', path: '/' },
+      { nameKey: 'footer_shipping_info', path: '/' },
+      { nameKey: 'footer_returns', path: '/' },
+      { nameKey: 'footer_order_tracking', path: '/order-lookup' },
+      { nameKey: 'footer_contact', path: '/' },
     ],
     company: [
-      { nameKey: 'footer_about', path: '/about' },
-      { nameKey: 'footer_careers', path: '/careers' },
-      { nameKey: 'footer_press', path: '/press' },
-      { nameKey: 'footer_blog', path: '/blog' },
-      { nameKey: 'footer_sustainability', path: '/sustainability' },
+      { nameKey: 'footer_about', path: '/' },
+      { nameKey: 'footer_careers', path: '/' },
+      { nameKey: 'footer_press', path: '/' },
+      { nameKey: 'footer_blog', path: '/' },
+      { nameKey: 'footer_sustainability', path: '/' },
     ],
     legal: [
-      { nameKey: 'footer_privacy', path: '/privacy' },
-      { nameKey: 'footer_terms', path: '/terms' },
-      { nameKey: 'footer_cookie', path: '/cookies' },
+      { nameKey: 'footer_privacy', path: '/' },
+      { nameKey: 'footer_terms', path: '/' },
+      { nameKey: 'footer_cookie', path: '/' },
     ],
   };
 
@@ -82,15 +82,15 @@ const Footer = () => {
             <div className="space-y-2">
               <a href="mailto:hello@lhcomputer.vn" className="flex items-center gap-2 text-body-sm text-neutral-500 hover:text-primary-600 transition-colors">
                 <HiOutlineEnvelope className="w-4 h-4" />
-                hello@lhcomputer.vn
+                lhcomputer.work@gmail.com
               </a>
-              <a href="tel:+84123456789" className="flex items-center gap-2 text-body-sm text-neutral-500 hover:text-primary-600 transition-colors">
+              <a href="tel:+84981372813" className="flex items-center gap-2 text-body-sm text-neutral-500 hover:text-primary-600 transition-colors">
                 <HiOutlinePhone className="w-4 h-4" />
-                +84 123 456 789
+                +84 981 372 813
               </a>
               <p className="flex items-center gap-2 text-body-sm text-neutral-500">
                 <HiOutlineMapPin className="w-4 h-4" />
-                TP. Hồ Chí Minh, Việt Nam
+                Xóm Châu Nhân 2, Xã Lam Thành, Tỉnh Nghệ An
               </p>
             </div>
           </div>

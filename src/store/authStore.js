@@ -18,8 +18,6 @@ const useAuthStore = create(
         try {
           // Call login API
           const { data: response } = await apiService.post('/auth/login', credentials);
-
-          // Some APIs wrap payload inside `data`
           const payload = response?.data ?? response;
 
           const accessToken = payload?.accessToken;

@@ -11,6 +11,16 @@ export const orderApi = {
     }
   },
 
+  lookupOrder: async (orderNo) => {
+    try {
+      const response = await API.get(`/orders/lookup/${orderNo}`);
+      return response;
+    } catch (error) {
+      console.error('Error looking up order:', error);
+      throw error;
+    }
+  },
+
   getMyOrders: async () => {
     try {
       const response = await API.get('/orders/my');
