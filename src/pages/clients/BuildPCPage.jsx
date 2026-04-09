@@ -266,6 +266,47 @@ const BuildPCPage = () => {
         });
     };
 
+    const mapAiPartToSelectedItem = (part, defaultName) => {
+        const productId = part?.productId || part?.id;
+        if (!productId) return null;
+
+        return {
+            id: productId,
+            variantId: part?.id || null,
+            name: part?.productName || defaultName,
+            price: Number(part?.variantPrice ?? part?.price ?? 0),
+            quantity: 1,
+            image: part?.productThumbnailUrl || 'https://via.placeholder.com/150',
+            warranty: '36 Tháng',
+        };
+    };
+
+    const handleApplyAiSuggestion = (suggestion) => {
+        const finalBuild = suggestion?.finalBuild;
+        if (!finalBuild) {
+            showToast('AI chưa trả về cấu hình chi tiết để tự điền.', 'warning');
+            return;
+        }
+
+        const mapped = {
+            cpu: mapAiPartToSelectedItem(finalBuild.cpu, 'CPU'),
+            mainboard: mapAiPartToSelectedItem(finalBuild.motherboard, 'Mainboard'),
+            ram: mapAiPartToSelectedItem(finalBuild.ram, 'RAM'),
+            vga: mapAiPartToSelectedItem(finalBuild.gpu, 'VGA'),
+            ssd: mapAiPartToSelectedItem(finalBuild.storage, 'SSD'),
+            psu: mapAiPartToSelectedItem(finalBuild.psu, 'PSU'),
+            case: mapAiPartToSelectedItem(finalBuild.case, 'Case'),
+            cooler: mapAiPartToSelectedItem(finalBuild.cooling, 'Cooler'),
+        };
+
+        const nextSelectedItems = Object.fromEntries(
+            Object.entries(mapped).filter(([, value]) => Boolean(value))
+        );
+
+        setSelectedItems(nextSelectedItems);
+        showToast('Đã tự động điền linh kiện theo gợi ý AI.', 'success');
+    };
+
     return (
         <div className="bg-slate-50 min-h-screen pb-32">
             {/* Header Banner */}
@@ -302,7 +343,7 @@ const BuildPCPage = () => {
             <div className="container-custom py-8 space-y-8">
                 {/* AI Builder Section */}
                 <div>
-                    <AIBuilder />
+                    <AIBuilder onApplySuggestion={handleApplyAiSuggestion} />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

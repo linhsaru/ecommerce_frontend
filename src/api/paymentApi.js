@@ -22,7 +22,7 @@ export const paymentApi = {
    */
   verifyVNPayReturn: async (queryString) => {
     try {
-      const response = await API.get(`/payments/vnpay/return${queryString}`);
+      const response = await API.get(`/payments/vnpay/verify${queryString}`);
       return response;
     } catch (error) {
       console.error('Error verifying VNPay return:', error);

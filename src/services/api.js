@@ -84,6 +84,8 @@ api.interceptors.response.use(
         default:
           throw new Error(data.message || `Request failed with status ${status}`);
       }
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timeout - AI server is taking too long to respond');
     } else if (error.request) {
       // Network error
       throw new Error('Network error - Please check your connection');

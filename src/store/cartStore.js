@@ -16,7 +16,10 @@ const useCartStore = create(
         const { isAuthenticated } = useAuthStore.getState();
         const { items } = get();
         const productId = product.id;
-        const variantId = product.variantId || product.id;
+        const variantId =
+          product.variantId ||
+          product.variant_id ||
+          (Array.isArray(product?.variants) && product.variants.length > 0 ? (product.variants[0]?.id ?? product.variants[0]?.variantId) : null);
 
         const resolvedImage =
           (typeof product?.image === 'string' && product.image) ? product.image
@@ -31,6 +34,11 @@ const useCartStore = create(
             : (typeof product?.thumbnail_url === 'string' && product.thumbnail_url) ? product.thumbnail_url
               : (typeof product?.image === 'string' && product.image) ? product.image
                 : '';
+
+        if (!variantId) {
+          console.error('Missing variantId for product', product);
+          return;
+        }
 
         if (isAuthenticated) {
           try {

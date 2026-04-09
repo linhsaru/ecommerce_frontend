@@ -1,9 +1,28 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, User, Loader2 } from 'lucide-react';
+import { Bot, X, Send, User, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { chatApi } from '../../api/chatApi';
+
+const formatBotMessage = (text) => {
+  if (typeof text !== 'string') return text;
+
+  // Split the text by ** to find bold segments
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-bold text-neutral-900">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
 
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -49,6 +68,7 @@ const ChatBot = () => {
       // Determine the bot's response text based on potential API response structures
       let botText = 'Xin lỗi, tôi không thể xử lý yêu cầu lúc này.';
       if (typeof response === 'string') botText = response;
+      else if (response?.data?.reply) botText = response.data.reply;
       else if (response?.message) botText = response.message;
       else if (response?.response) botText = response.response;
       else if (response?.data) botText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
@@ -76,24 +96,33 @@ const ChatBot = () => {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
-        <div className="mb-4 w-80 sm:w-96 flex flex-col shadow-2xl rounded-2xl overflow-hidden bg-white border border-neutral-200 transition-all transform origin-bottom-right">
+        <div className={`mb-4 flex flex-col shadow-2xl rounded-2xl overflow-hidden bg-white border border-neutral-200 transition-all transform origin-bottom-right ${isExpanded ? 'w-[90vw] sm:w-[80vw] md:w-[800px] h-[80vh]' : 'w-80 sm:w-96'}`}>
           {/* Header */}
           <div className="bg-primary-600 text-white p-4 flex justify-between items-center">
             <div className="flex items-center gap-2">
               <Bot size={24} />
               <span className="font-semibold text-body-md">AI Assistant</span>
             </div>
-            <button
-              onClick={toggleChat}
-              className="text-white hover:text-primary-200 transition-colors"
-              aria-label="Close Chat"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-white hover:text-primary-200 transition-colors"
+                aria-label={isExpanded ? "Thu nhỏ" : "Phóng to"}
+              >
+                {isExpanded ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+              </button>
+              <button
+                onClick={toggleChat}
+                className="text-white hover:text-primary-200 transition-colors"
+                aria-label="Close Chat"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 p-4 overflow-y-auto min-h-[300px] max-h-[400px] bg-neutral-50 flex flex-col gap-3">
+          <div className={`flex-1 p-4 overflow-y-auto bg-neutral-50 flex flex-col gap-3 ${isExpanded ? '' : 'min-h-[300px] max-h-[400px]'}`}>
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -111,13 +140,15 @@ const ChatBot = () => {
                   </div>
                   <div
                     className={`py-2 px-3 rounded-2xl ${msg.sender === 'user'
-                        ? 'bg-primary-500 text-white rounded-tr-none'
-                        : msg.isError
-                          ? 'bg-red-100 text-red-600 rounded-tl-none'
-                          : 'bg-white border border-neutral-200 text-neutral-800 rounded-tl-none'
+                      ? 'bg-primary-500 text-white rounded-tr-none'
+                      : msg.isError
+                        ? 'bg-red-100 text-red-600 rounded-tl-none'
+                        : 'bg-white border border-neutral-200 text-neutral-800 rounded-tl-none'
                       }`}
                   >
-                    <p className="text-body-sm leading-relaxed">{msg.text}</p>
+                    <div className="text-body-sm leading-relaxed whitespace-pre-wrap">
+                      {msg.sender === 'user' ? msg.text : formatBotMessage(msg.text)}
+                    </div>
                   </div>
                 </div>
               </div>

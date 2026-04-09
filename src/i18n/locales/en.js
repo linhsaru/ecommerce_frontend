@@ -309,6 +309,11 @@ export default {
   order_number: "Order Number",
   total_amount: "Total Amount",
   order_items: "Items In Your Order",
+  payment_success: "Payment Success",
+  payment_failed: "Payment Failed",
+  redirecting_to_order_page: "Redirecting to order page",
+  back_to_home: "Back to Home",
+  payment_not_found: "Payment not found",
 
   // Home Page
   popular: 'Popular',

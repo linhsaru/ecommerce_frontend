@@ -142,8 +142,6 @@ const CheckoutPage = () => {
 
       const createdOrderNo =
         orderResponse?.data?.orderNo ||
-        orderResponse?.orderNo ||
-        orderResponse?.data?.code ||
         createdOrderId;
 
       if (!createdOrderId) {
@@ -196,7 +194,7 @@ const CheckoutPage = () => {
       province: shippingData.ship_province || '',
       paymentMethod: PAYMENT_METHOD_TO_ENUM[paymentMethod] ?? 0,
       items: items.map((item) => ({
-        productVariantId: item.variantId || item.variant_id || item.id,
+        productVariantId: item.variantId || item.variant_id,
         quantity: item.quantity,
       })),
     };

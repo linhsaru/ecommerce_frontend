@@ -163,6 +163,11 @@ export default {
   order_number: "Mã đơn hàng",
   total_amount: "Tổng tiền",
   order_items: "Sản phẩm trong đơn hàng",
+  payment_success: "Thanh toán thành công",
+  payment_failed: "Thanh toán thất bại",
+  redirecting_to_order_page: "Đang chuyển đến trang",
+  back_to_home: "Về trang chủ",
+  payment_not_found: "Không tìm thấy thông tin thanh toán",
 
   // Footer
   footer_stay_in_loop: 'Đăng ký nhận tin',
