@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bot, Zap } from 'lucide-react';
+import { apiService } from '../../services';
 
 const BUDGET_OPTIONS = [
   { id: 'under-15', label: 'Dưới 15 triệu' },
@@ -28,7 +29,7 @@ const BRAND_OPTIONS = [
   { id: 'mixed', label: 'Pha trộn tối ưu giá' },
 ];
 
-const AIBuilder = () => {
+const AIBuilder = ({ onApplySuggestion }) => {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -46,6 +47,7 @@ const AIBuilder = () => {
   const [usage, setUsage] = useState('');
   const [performance, setPerformance] = useState([]);
   const [brand, setBrand] = useState('no-pref');
+  const [isLoading, setIsLoading] = useState(false);
 
   const togglePerformance = (id) => {
     setPerformance((prev) =>
@@ -55,40 +57,38 @@ const AIBuilder = () => {
 
   const getLabel = (list, id) => list.find((item) => item.id === id)?.label;
 
-  const handleRecommend = () => {
+  const handleRecommend = async () => {
     if (!budget || !usage) return;
 
     const budgetLabel = getLabel(BUDGET_OPTIONS, budget);
     const usageLabel = getLabel(USAGE_OPTIONS, usage);
     const perfLabels = performance.map((id) => getLabel(PERFORMANCE_OPTIONS, id)).filter(Boolean);
-    const brandLabel = getLabel(BRAND_OPTIONS, brand);
+    const brandLabel = brand === 'no-pref' ? '' : getLabel(BRAND_OPTIONS, brand);
+    setIsLoading(true);
 
-    const userSummary = [
-      `Ngân sách: ${budgetLabel}`,
-      `Mục đích sử dụng: ${usageLabel}`,
-      perfLabels.length ? `Định hướng hiệu năng: ${perfLabels.join(', ')}` : null,
-      brandLabel ? `Ưu tiên thương hiệu: ${brandLabel}` : null,
-    ]
-      .filter(Boolean)
-      .join(' | ');
+    try {
+      const payload = {
+        budget: budgetLabel || null,
+        usage: usageLabel || null,
+        performanceTags: perfLabels,
+        brandPreference: brandLabel || null,
+      };
 
-    const userMessage = {
-      role: 'user',
-      content: userSummary,
-    };
+      const response = await apiService.post('/api/pc-build/gemini-suggestions', payload, {
+        timeout: 120000,
+      });
+      const root = response?.data ?? response;
+      const suggestion = root?.data ?? root;
 
-    setMessages((prev) => [...prev, userMessage]);
+      if (typeof onApplySuggestion === 'function') {
+        onApplySuggestion(suggestion);
+      }
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content:
-            'Dựa trên lựa chọn của bạn, mình gợi ý: CPU tầm trung - cao, RAM tối thiểu 16GB, SSD NVMe, VGA phù hợp ngân sách và mục đích (ưu tiên card đồ họa mạnh nếu gaming / design). Bạn có thể dùng bộ lọc sản phẩm để tinh chỉnh chi tiết từng linh kiện.',
-        },
-      ]);
-    }, 600);
+    } catch (error) {
+      console.error('Failed to get AI suggestion', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -126,7 +126,7 @@ const AIBuilder = () => {
                   : 'bg-slate-100 text-slate-800 border border-slate-200/80'
                   }`}
               >
-                <p className="text-sm leading-relaxed">{msg.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</p>
               </div>
             </div>
           ))}
@@ -239,10 +239,10 @@ const AIBuilder = () => {
             <button
               type="button"
               onClick={handleRecommend}
-              disabled={!budget || !usage}
+              disabled={!budget || !usage || isLoading}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-colors"
             >
-              Gợi ý cấu hình
+              {isLoading ? 'Đang gợi ý...' : 'Gợi ý cấu hình'}
             </button>
           </div>
         </div>

@@ -72,6 +72,7 @@ const normalizeOrder = (order) => {
     name: item?.name || 'Sản phẩm',
     variantName: item?.variantName || '',
     sku: item?.sku || '',
+    productImageUrl: item?.productImageUrl || item?.imageUrl || '',
     quantity: Number(item?.quantity) || 1,
     unitPrice: Number(item?.unitPrice || 0),
     lineTotal: Number(item?.lineTotal || 0),
@@ -490,7 +491,7 @@ const AccountPage = () => {
                         {order.items.map((item) => (
                           <div key={item.id} className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0">
-                              <HiOutlineShoppingBag className="w-5 h-5 text-neutral-400" />
+                              <img src={item.productImageUrl} alt="img" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-body-sm font-medium text-neutral-800 line-clamp-1">{item.name}</p>
