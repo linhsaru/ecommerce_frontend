@@ -11,7 +11,7 @@ import {
 } from 'react-icons/hi2';
 import { X, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiService } from '../../services';
+import { apiService, downloadQuotationExcel } from '../../services';
 import { useCartStore } from '../../store/cartStore';
 import { useCategoryStore } from '../../store/categoryStore';
 import { AIBuilder } from '../../components/shop';
@@ -179,6 +179,7 @@ const BuildPCPage = () => {
     const [selectedItems, setSelectedItems] = useState({});
     const [activeCategory, setActiveCategory] = useState(null);
     const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'success' });
+    const [exportingExcel, setExportingExcel] = useState(false);
 
     useEffect(() => {
         fetchCategories().catch((error) => {
@@ -213,6 +214,31 @@ const BuildPCPage = () => {
         }
         items.forEach(item => addToCart(item, item.quantity));
         navigate('/checkout');
+    };
+
+    const handleExportExcel = async () => {
+        const items = Object.values(selectedItems).map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+            variantId: item.variantId ?? null,
+        }));
+        if (items.length === 0) {
+            showToast('Vui lòng chọn ít nhất một linh kiện để tải cấu hình.', 'warning');
+            return;
+        }
+        setExportingExcel(true);
+        try {
+            await downloadQuotationExcel({
+                items,
+                shippingFee: 0,
+                otherCosts: 0,
+                discount: 0,
+            });
+        } catch (e) {
+            showToast(e?.message || 'Không tải được file Excel.', 'error');
+        } finally {
+            setExportingExcel(false);
+        }
     };
 
     const handleSelectProduct = (product) => {
@@ -321,11 +347,31 @@ const BuildPCPage = () => {
                     </div>
 
                     <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                        <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors whitespace-nowrap">
+                        <button
+                            type="button"
+                            disabled={exportingExcel}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors whitespace-nowrap disabled:opacity-60 disabled:pointer-events-none"
+                            onClick={handleExportExcel}
+                        >
                             <HiOutlineArrowDownTray className="w-4 h-4" />
-                            Tải cấu hình
+                            {exportingExcel ? 'Đang xuất file…' : 'Tải cấu hình'}
                         </button>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors whitespace-nowrap">
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-sm transition-colors whitespace-nowrap"
+                            onClick={() => {
+                                const items = Object.values(selectedItems).map((item) => ({
+                                    productId: item.id,
+                                    quantity: item.quantity,
+                                    variantId: item.variantId ?? null,
+                                }));
+                                if (items.length === 0) {
+                                    showToast('Vui lòng chọn ít nhất một linh kiện để in báo giá.', 'warning');
+                                    return;
+                                }
+                                navigate('/quotation', { state: { items } });
+                            }}
+                        >
                             <HiOutlinePrinter className="w-4 h-4" />
                             In báo giá
                         </button>
@@ -444,24 +490,17 @@ const BuildPCPage = () => {
                     <div className="hidden lg:block lg:col-span-4 relative">
                         <div className="sticky top-40 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                             <h2 className="text-lg font-bold text-slate-800 mb-4 pb-4 border-b border-slate-100">
-                                Tóm tắt cấu hình
+                                {t('summary')}
                             </h2>
 
                             <div className="space-y-4 mb-6">
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-500">Số lượng linh kiện:</span>
+                                    <span className="text-slate-500">{t('number_of_components')}</span>
                                     <span className="font-semibold text-slate-800">{Object.keys(selectedItems).length}/{categories.length}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-500">Công suất tiêu thụ ước tính:</span>
-                                    <span className="font-semibold text-orange-500">
-                                        {/* Fake wattage calculation */}
-                                        {Object.keys(selectedItems).length > 0 ? Object.keys(selectedItems).length * 85 : 0}W
-                                    </span>
                                 </div>
                                 <div className="h-px bg-slate-100"></div>
                                 <div className="flex justify-between items-end">
-                                    <span className="text-slate-800 font-medium">Tổng tiền:</span>
+                                    <span className="text-slate-800 font-medium">{t('total_price')}</span>
                                     <span className="text-2xl font-bold text-red-500">{formatCurrency(calculateTotal())}</span>
                                 </div>
                             </div>

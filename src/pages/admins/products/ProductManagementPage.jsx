@@ -2,7 +2,9 @@ import { useEffect, useState, useMemo } from 'react';
 import { useProductStore } from '../../../store/productStore';
 import Pagination from '../../../components/data-displays/Pagination/Pagination';
 import ProductModal from './components/ProductModal';
+import ConfirmDeleteModal from '../../../components/common/Modal/ConfirmDeleteModal';
 import { Plus, Search } from 'lucide-react';
+import { apiService } from '../../../services';
 
 const formatCurrency = (value) => {
   if (typeof value !== 'number') return '—';
@@ -68,6 +70,7 @@ const ProductManagementPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add');
   const [selectedSlug, setSelectedSlug] = useState(null);
+  const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, id: null });
 
   const handleOpenModal = (mode, slug = null) => {
     setModalMode(mode);
@@ -87,6 +90,22 @@ const ProductManagementPage = () => {
   useEffect(() => {
     fetchProducts().catch(() => { });
   }, [page]);
+
+  const promptDelete = (id) => {
+    setDeleteModalState({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    const id = deleteModalState.id;
+    if (!id) return;
+    try {
+      await apiService.delete(`/products/${id}`);
+      fetchProducts().catch(() => { });
+      setDeleteModalState({ isOpen: false, id: null });
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi xóa sản phẩm.');
+    }
+  };
 
   const handleSearch = () => {
     setFilters({
@@ -284,7 +303,10 @@ const ProductManagementPage = () => {
                           >
                             Sửa
                           </button>
-                          <button className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors">
+                          <button
+                            onClick={() => promptDelete(product.id)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
+                          >
                             Xóa
                           </button>
                         </div>
@@ -316,6 +338,15 @@ const ProductManagementPage = () => {
         mode={modalMode}
         productSlug={selectedSlug}
         onSuccess={handleModalSuccess}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, id: null })}
+        onConfirm={executeDelete}
+        title="Xóa sản phẩm"
+        message="Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác."
       />
     </div>
   );

@@ -10,8 +10,9 @@ import {
 } from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import { coupons, userAddresses } from '../../data/mockData';
+import { coupons as mockCoupons, userAddresses } from '../../data/mockData';
 import CouponList from '../../components/CouponList';
+import { apiService } from '../../services';
 import { paymentApi } from '../../api/paymentApi';
 import { orderApi } from '../../api/orderApi';
 import { calculateOrderTotals } from '../../logic/priceCalculator';
@@ -61,6 +62,7 @@ const CheckoutPage = () => {
 
   const [shippingData, setShippingData] = useState({
     ship_recipient: '',
+    ship_email: '',
     ship_phone: '',
     ship_line1: '',
     ship_line2: '',
@@ -73,6 +75,7 @@ const CheckoutPage = () => {
 
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [activeCoupons, setActiveCoupons] = useState(mockCoupons || []);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'info' });
 
@@ -81,9 +84,27 @@ const CheckoutPage = () => {
   };
 
   useEffect(() => {
+    if (isAuthenticated) {
+      const fetchLiveCoupons = async () => {
+        try {
+          const { data } = await apiService.get('/coupons', { params: { pageSize: 100 } });
+          const items = data?.data?.items || data?.items || [];
+          if (items.length > 0) {
+            setActiveCoupons(items.filter(c => c.status === 1));
+          }
+        } catch (error) {
+          console.error('Failed to fetch live coupons:', error);
+        }
+      };
+      fetchLiveCoupons();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (isAuthenticated && defaultAddress) {
       setShippingData({
         ship_recipient: defaultAddress.recipient,
+        ship_email: user?.email || '',
         ship_phone: defaultAddress.phone,
         ship_line1: defaultAddress.line1,
         ship_line2: defaultAddress.line2 ?? '',
@@ -103,6 +124,7 @@ const CheckoutPage = () => {
       if (addr) {
         setShippingData({
           ship_recipient: addr.recipient,
+          ship_email: user?.email || '',
           ship_phone: addr.phone,
           ship_line1: addr.line1,
           ship_line2: addr.line2 ?? '',
@@ -188,6 +210,7 @@ const CheckoutPage = () => {
   const buildOrderPayload = () => {
     return {
       userId: user?.id,
+      recipientEmail: shippingData.ship_email,
       shippingAddress: shippingData.ship_line1,
       phoneNumber: shippingData.ship_phone,
       ward: shippingData.ship_ward || '',
@@ -212,10 +235,7 @@ const CheckoutPage = () => {
             <HiOutlineCheckCircle className="w-10 h-10 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-3">{t('order_placed')}</h1>
-          <p className="text-slate-600 mb-2">{t('thank_you_purchase')}</p>
-          <p className="text-sm text-slate-500 mb-8">
-            {t('order_number')}: <span className="font-semibold text-slate-800">{orderNo}</span>
-          </p>
+          <p className="text-slate-600 mb-8">{t('email_sent_noti')}</p>
           <div className="flex items-center justify-center gap-4">
             {isAuthenticated ? (
               <Link to="/account/orders" className="btn-secondary">{t('view_orders')}</Link>
@@ -302,7 +322,7 @@ const CheckoutPage = () => {
                     required
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-1">
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('phone')}</label>
                   <input
                     name="ship_phone"
@@ -313,8 +333,20 @@ const CheckoutPage = () => {
                     required
                   />
                 </div>
+                <div className="md:col-span-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('email_address') || 'Email'}</label>
+                  <input
+                    type="email"
+                    name="ship_email"
+                    value={shippingData.ship_email}
+                    onChange={handleShippingChange}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="email@example.com"
+                    required
+                  />
+                </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Address line 1</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('address_line_1')}</label>
                   <input
                     name="ship_line1"
                     value={shippingData.ship_line1}
@@ -325,7 +357,7 @@ const CheckoutPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Ward</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('ward')}</label>
                   <input
                     name="ship_ward"
                     value={shippingData.ship_ward}
@@ -334,7 +366,7 @@ const CheckoutPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Province</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('province')}</label>
                   <input
                     name="ship_province"
                     value={shippingData.ship_province}
@@ -364,15 +396,15 @@ const CheckoutPage = () => {
               </div>
               <div className="flex items-center gap-2 mt-4 text-sm text-slate-500">
                 <HiOutlineLockClosed className="w-4 h-4" />
-                <span>Secure payment</span>
+                <span>{t('secure_payment')}</span>
               </div>
             </div>
 
             {isAuthenticated && (
               <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-800 mb-4">Coupon</h2>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('coupon')}</h2>
                 <CouponList
-                  coupons={coupons}
+                  coupons={activeCoupons}
                   subtotalAmount={cartTotal}
                   selectedCoupon={selectedCoupon}
                   onSelect={setSelectedCoupon}
@@ -433,7 +465,7 @@ const CheckoutPage = () => {
               </div>
               <button
                 onClick={handlePlaceOrder}
-                disabled={isSubmitting || !shippingData.ship_recipient || !shippingData.ship_phone || !shippingData.ship_line1}
+                disabled={isSubmitting || !shippingData.ship_recipient || !shippingData.ship_phone || !shippingData.ship_email || !shippingData.ship_line1}
                 className="w-full mt-6 py-3.5 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
               >
                 {isSubmitting ? (

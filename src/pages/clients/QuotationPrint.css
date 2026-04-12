@@ -1,0 +1,262 @@
+/* Trang báo giá — màn hình + in A4 */
+
+.quotation-print-wrap {
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+}
+
+.quotation-print-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.quotation-print-toolbar button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  color: #fff;
+  cursor: pointer;
+}
+
+.quotation-print-toolbar button:hover {
+  background: #334155;
+}
+
+.quotation-print-toolbar button.secondary {
+  background: #fff;
+  color: #0f172a;
+}
+
+.quotation-print-toolbar button.secondary:hover {
+  background: #f1f5f9;
+}
+
+/* Khổ giấy A4 mô phỏng trên màn hình */
+.quotation-sheet {
+  width: 100%;
+  min-height: 297mm;
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  padding: 12mm 14mm;
+  box-sizing: border-box;
+}
+
+.quotation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #0f172a;
+  margin-bottom: 1rem;
+}
+
+.quotation-company-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.quotation-logo-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: flex-start;
+}
+
+.quotation-logo {
+  max-height: 88px;
+  width: auto;
+  max-width: 140px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.quotation-company-name {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 0 0 0.35rem;
+}
+
+.quotation-company-meta {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  margin: 0;
+  color: #334155;
+}
+
+.quotation-title-block {
+  margin-bottom: 1rem;
+}
+
+.quotation-title {
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin: 1rem 0 0.65rem;
+}
+
+.quotation-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.8rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.quotation-meta-row strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.quotation-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.quotation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.quotation-table th,
+.quotation-table td {
+  border: 1px solid #0f172a;
+  padding: 0.4rem 0.45rem;
+  vertical-align: top;
+}
+
+.quotation-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+  text-align: center;
+}
+
+.quotation-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.quotation-table td.center {
+  text-align: center;
+}
+
+.quotation-table tbody tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.quotation-summary {
+  margin-left: auto;
+  width: 100%;
+  max-width: 280px;
+  font-size: 0.8rem;
+  border: 1px solid #0f172a;
+  border-collapse: collapse;
+}
+
+.quotation-summary td {
+  border: 1px solid #0f172a;
+  padding: 0.35rem 0.5rem;
+}
+
+.quotation-summary td:first-child {
+  font-weight: 600;
+  background: #f8fafc;
+}
+
+.quotation-summary td:last-child {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.quotation-notes {
+  font-size: 0.75rem;
+  color: #334155;
+  margin: 1rem 0 0;
+  line-height: 1.5;
+  padding: 0.5rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.quotation-error {
+  padding: 2rem;
+  text-align: center;
+  color: #b91c1c;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.quotation-print-route .min-h-screen > nav,
+  body.quotation-print-route .min-h-screen > header,
+  body.quotation-print-route .min-h-screen > footer {
+    display: none !important;
+  }
+
+  body.quotation-print-route .min-h-screen > .fixed {
+    display: none !important;
+  }
+
+  .quotation-print-toolbar {
+    display: none !important;
+  }
+
+  .quotation-print-wrap {
+    max-width: none;
+    padding: 0;
+  }
+
+  .quotation-sheet {
+    border: none;
+    box-shadow: none;
+    min-height: auto;
+    padding: 0;
+  }
+
+  .quotation-table th {
+    background: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .quotation-notes {
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .quotation-summary td:first-child {
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

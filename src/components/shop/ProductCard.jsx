@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { HiOutlineHeart, HiHeart, HiOutlineShoppingBag, HiOutlineEye } from 'react-icons/hi2';
-import StarRating from './StarRating';
 import PriceDisplay from './PriceDisplay';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
@@ -162,7 +161,6 @@ const ProductCard = ({ product, variant = 'default' }) => {
             <h3 className="text-body-sm font-semibold text-neutral-800 line-clamp-1 group-hover:text-primary-600 transition-colors">
               {product.name}
             </h3>
-            <StarRating rating={product.rating} size="sm" reviewCount={product.reviewCount} />
           </div>
           <PriceDisplay price={product.price} discountPrice={product.discountPrice} size="sm" />
         </div>
@@ -257,9 +255,6 @@ const ProductCard = ({ product, variant = 'default' }) => {
         <h3 className="text-body-sm font-semibold text-neutral-800 line-clamp-1 group-hover:text-primary-600 transition-colors duration-200 mb-1.5">
           {product.name}
         </h3>
-        <div className="mb-2">
-          <StarRating rating={product.rating} size="sm" reviewCount={product.reviewCount} />
-        </div>
         <PriceDisplay price={product.price} discountPrice={product.discountPrice} size="sm" />
       </div>
 

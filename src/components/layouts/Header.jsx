@@ -44,8 +44,8 @@ const Header = () => {
   const navLinks = [
     { nameKey: 'home', path: '/' },
     { nameKey: 'shop', path: '/products' },
-    { nameKey: 'news', path: '/news' },
-    { nameKey: 'buildpc', path: '/build-pc' }
+    { nameKey: 'buildpc', path: '/build-pc' },
+    { nameKey: 'about', path: '/about' },
   ];
 
   return (

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Tag } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import { formatVnd } from '../utils/price';
 
 /**
  * CouponList - Modal/dropdown to select coupons (members only)
@@ -12,22 +13,27 @@ const CouponList = ({ coupons, subtotalAmount, selectedCoupon, onSelect, onClose
 
   const eligibleCoupons = coupons.filter((c) => {
     if (c.status !== 1) return false;
-    if (c.usage_limit != null && c.usage_count >= c.usage_limit) return false;
-    return Number(c.min_order_value) <= subtotalAmount;
+    
+    // Support both snake_case (mock) and camelCase (API)
+    const usageLimit = c.usageLimit ?? c.usage_limit;
+    const usageCount = c.usageCount ?? c.usage_count ?? 0;
+    const minOrderValue = c.minOrderValue ?? c.min_order_value ?? 0;
+
+    if (usageLimit != null && usageLimit > 0 && usageCount >= usageLimit) return false;
+    return Number(minOrderValue) <= subtotalAmount;
   });
 
   const formatDiscount = (c) => {
-    if (c.discount_type === 'percent') {
-      return c.max_discount
-        ? `${c.discount_value}% (max ${formatCurrency(c.max_discount)})`
-        : `${c.discount_value}% off`;
-    }
-    return `${formatCurrency(c.discount_value)} off`;
-  };
+    const dType = c.discountType ?? c.discount_type;
+    const maxD = c.maxDiscount ?? c.max_discount;
+    const dValue = c.discountValue ?? c.discount_value;
 
-  const formatCurrency = (v) => {
-    const n = Number(v);
-    return n >= 1000 ? `$${n.toLocaleString()}` : `${n.toLocaleString()}₫`;
+    if (dType === 'percent') {
+      return maxD
+        ? `${dValue}% (max ${formatVnd(maxD)})`
+        : `${dValue}% off`;
+    }
+    return `-${formatVnd(dValue)}`;
   };
 
   return (

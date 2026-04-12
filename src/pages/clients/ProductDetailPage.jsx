@@ -13,10 +13,9 @@ import {
   HiStar,
   HiCheckCircle,
 } from 'react-icons/hi2';
-import { StarRating, PriceDisplay, QuantitySelector, ProductCard } from '../../components/shop';
+import { PriceDisplay, QuantitySelector, ProductCard } from '../../components/shop';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
-import { reviews as allReviews } from '../../data/mockData';
 import { apiService } from '../../services';
 import { formatVnd } from '../../utils/price';
 import { useTranslation } from '../../context/LanguageContext';
@@ -232,10 +231,7 @@ const ProductDetailPage = () => {
     }
   }, [slug]);
 
-  const reviews = useMemo(
-    () => (product ? allReviews.filter((r) => r.productId === product.id) : []),
-    [product]
-  );
+
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
@@ -308,17 +304,11 @@ const ProductDetailPage = () => {
     navigate('/checkout', { state: { buyNowItem: { ...product, selectedColor, selectedSize, variantId, quantity } } });
   };
 
-  // Rating distribution
-  const ratingDistribution = useMemo(() => {
-    const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviews.forEach((r) => { dist[r.rating]++; });
-    return dist;
-  }, [reviews]);
+
 
   const tabs = [
     { id: 'description', label: t('description') },
     { id: 'specifications', label: t('specifications') },
-    { id: 'reviews', label: `${t('reviews')} (${reviews.length})` },
   ];
 
   if (isLoading || !product) {
@@ -407,7 +397,6 @@ const ProductDetailPage = () => {
               <p className="text-body-sm text-primary-600 font-medium mb-1">{product.brand}</p>
               <h1 className="text-display-sm md:text-display-md text-neutral-900 mb-3">{product.name}</h1>
               <div className="flex items-center gap-4">
-                <StarRating rating={product.rating} size="md" showValue reviewCount={product.reviewCount} />
                 {product.inStock ? (
                   <span className="badge-success">In Stock</span>
                 ) : (
@@ -632,97 +621,7 @@ const ProductDetailPage = () => {
               </div>
             )}
 
-            {activeTab === 'reviews' && (
-              <div>
-                {/* Review Summary */}
-                <div className="card p-6 md:p-8 mb-8">
-                  <div className="grid md:grid-cols-3 gap-8">
-                    {/* Overall Rating */}
-                    <div className="text-center md:border-r border-neutral-100">
-                      <div className="text-display-xl text-neutral-900 mb-1">{product.rating}</div>
-                      <StarRating rating={product.rating} size="lg" />
-                      <p className="text-body-sm text-neutral-500 mt-2">
-                        Based on {product.reviewCount.toLocaleString()} reviews
-                      </p>
-                    </div>
 
-                    {/* Rating Distribution */}
-                    <div className="md:col-span-2 space-y-2">
-                      {[5, 4, 3, 2, 1].map((star) => {
-                        const count = ratingDistribution[star];
-                        const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                        return (
-                          <div key={star} className="flex items-center gap-3">
-                            <span className="text-body-sm text-neutral-600 w-8">{star} ★</span>
-                            <div className="flex-1 h-2.5 bg-neutral-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                            <span className="text-body-sm text-neutral-500 w-8">{count}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Review List */}
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="card p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={review.userAvatar}
-                            alt={review.userName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-body-sm font-semibold text-neutral-800">{review.userName}</p>
-                              {review.verified && (
-                                <span className="badge-success text-[10px]">
-                                  <HiCheckCircle className="w-3 h-3" /> Verified
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-caption text-neutral-500">{review.date}</p>
-                          </div>
-                        </div>
-                        <StarRating rating={review.rating} size="sm" />
-                      </div>
-
-                      <h4 className="text-body-sm font-semibold text-neutral-800 mb-2">{review.title}</h4>
-                      <p className="text-body-sm text-neutral-600 leading-relaxed mb-3">{review.comment}</p>
-
-                      {review.images.length > 0 && (
-                        <div className="flex gap-2 mb-3">
-                          {review.images.map((img, i) => (
-                            <div key={i} className="w-16 h-16 rounded-lg overflow-hidden">
-                              <img src={img} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <button className="flex items-center gap-1.5 text-caption text-neutral-500 hover:text-primary-600 transition-colors">
-                        <HiOutlineHandThumbUp className="w-3.5 h-3.5" />
-                        Helpful ({review.helpful})
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Write Review Button */}
-                <div className="mt-8 text-center">
-                  <button className="btn-secondary">
-                    Write a Review
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 

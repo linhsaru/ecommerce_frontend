@@ -117,31 +117,6 @@ const Sidebar = ({
               </div>
             </div>
 
-            {/* Usage Purpose */}
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <h4 className="text-sm font-semibold text-slate-800 mb-3">{t('usage_purpose')}</h4>
-              <div className="space-y-1.5">
-                <button
-                  onClick={() => onUsagePurposeChange('')}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedUsagePurpose
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                >
-                  {t('all') || 'All'}
-                </button>
-                {usagePurposes.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => onUsagePurposeChange(selectedUsagePurpose === p.id ? '' : p.id)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${selectedUsagePurpose === p.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {activeCount > 0 && (
@@ -149,7 +124,7 @@ const Sidebar = ({
               onClick={onClearFilters}
               className="mt-6 w-full py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 transition-colors"
             >
-              Clear all filters
+              {t('clear_all_filters')}
             </button>
           )}
 

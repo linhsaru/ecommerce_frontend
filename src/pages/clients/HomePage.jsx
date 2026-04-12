@@ -21,40 +21,43 @@ const PROMO_THEMES = [
   { bgColor: 'from-slate-700 to-slate-900', textColor: 'white' },
 ];
 
-const HERO_GRADIENTS = [
-  'from-blue-50 via-white to-blue-50',
-  'from-blue-50 via-white to-indigo-50',
-  'from-indigo-50 via-white to-blue-50',
-];
-
-const heroSlidesFallback = [
+const STATIC_HERO_SLIDES = [
   {
-    title: 'Build Your\nPerfect PC',
-    subtitle: 'Premium CPU, GPU, RAM & components for gaming, AI & creative work',
-    badgeText: 'PC Parts & Tech',
-    cta: 'Shop Now',
+    title: 'PC Lắp Ráp\nChuyên Nghiệp',
+    subtitle: 'Tối ưu hóa sức mạnh với các linh kiện cao cấp từ những thương hiệu hàng đầu thế giới.',
+    badgeText: 'PC Cao Cấp',
+    cta: 'Khám phá ngay',
     ctaLink: '/products',
-    image: 'https://picsum.photos/seed/tech1/1200/800',
-    gradient: HERO_GRADIENTS[0],
+    image: 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&q=80&w=2000',
+    gradient: 'from-slate-900 via-blue-900 to-slate-900',
   },
   {
-    title: 'AI-Ready\nComponents',
-    subtitle: 'Optimize your workflow with hardware built for AI research & machine learning',
-    badgeText: 'PC Parts & Tech',
-    cta: 'Explore',
+    title: 'Trải Nghiệm\nGaming Đỉnh Cao',
+    subtitle: 'Nâng cấp góc máy của bạn với trang thiết bị cực chất, chinh phục mọi tựa game AAA.',
+    badgeText: 'Gaming Setup',
+    cta: 'Xem sản phẩm',
     ctaLink: '/products',
-    image: 'https://picsum.photos/seed/tech2/1200/800',
-    gradient: HERO_GRADIENTS[1],
+    image: 'https://images.unsplash.com/photo-1600861194942-f883de0dfe96?auto=format&fit=crop&q=80&w=2000',
+    gradient: 'from-slate-900 via-purple-900 to-slate-900',
   },
   {
-    title: 'Gaming\nPerformance',
-    subtitle: 'Top-tier GPUs and CPUs for the ultimate gaming experience',
-    badgeText: 'PC Parts & Tech',
-    cta: 'Shop GPUs',
-    ctaLink: '/products?category=gpu',
-    image: 'https://picsum.photos/seed/tech3/1200/800',
-    gradient: HERO_GRADIENTS[2],
+    title: 'Sức Mạnh\nTừ Tương Lai',
+    subtitle: 'Vi xử lý đời mới với hiệu năng vượt trội, đáp ứng tốt mọi tựa game và công việc.',
+    badgeText: 'Linh Kiện Mới',
+    cta: 'Nhận ưu đãi',
+    ctaLink: '/products',
+    image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&q=80&w=2000',
+    gradient: 'from-slate-900 via-indigo-900 to-slate-900',
   },
+  {
+    title: 'Đột Phá\nKhông Giới Hạn',
+    subtitle: 'Công nghệ tiên tiến luôn giữ cho máy tính của bạn hoạt động ở trạng thái xuất sắc nhất.',
+    badgeText: 'Công Nghệ Đỉnh',
+    cta: 'Mua sắm ngay',
+    ctaLink: '/products',
+    image: 'https://images.unsplash.com/photo-1614624532983-4ce03382d63d?auto=format&fit=crop&q=80&w=2000',
+    gradient: 'from-slate-900 via-cyan-900 to-slate-900',
+  }
 ];
 
 const mapApiProductToCardViewModel = (p, { isNew = false } = {}) => {
@@ -115,7 +118,7 @@ const HomePage = () => {
   const [newArrivals, setNewArrivals] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [isPromotionsLoading, setIsPromotionsLoading] = useState(false);
-  const [heroSlides, setHeroSlides] = useState(heroSlidesFallback);
+  const [heroSlides, setHeroSlides] = useState(STATIC_HERO_SLIDES);
   const [categorySections, setCategorySections] = useState([]);
 
   useEffect(() => {
@@ -161,7 +164,7 @@ const HomePage = () => {
         const others = categories.filter(c => c.slug !== 'pc-nc').slice(0, 2);
         customSections.push(...others.map(c => ({ slug: c.slug, name: c.name })));
       }
-      
+
       const promises = customSections.map(async (catInfo) => {
         try {
           const { data: response } = await apiService.get(`/products/by-category/${catInfo.slug}`, {
@@ -170,7 +173,7 @@ const HomePage = () => {
           const root = response?.data ?? response;
           const payload = root?.data ?? root;
           const items = Array.isArray(payload?.items) ? payload.items : (Array.isArray(payload) ? payload : []);
-          
+
           return {
             category: { id: catInfo.slug, slug: catInfo.slug, name: catInfo.name },
             products: items.map(p => mapApiProductToCardViewModel(p))
@@ -179,13 +182,13 @@ const HomePage = () => {
           return null;
         }
       });
-      
+
       const results = await Promise.all(promises);
       if (active) {
         setCategorySections(results.filter(r => r && r.products.length > 0));
       }
     };
-    
+
     loadCategoryProducts();
     return () => { active = false; };
   }, [categories]);
@@ -248,7 +251,7 @@ const HomePage = () => {
 
         if (!cancelled) {
           setPromotions(mapped);
-          if (heroMapped.length > 0) setHeroSlides(heroMapped);
+          // Removed API setting for heroBanner to keep the fixed STATIC_HERO_SLIDES logic
         }
       } catch (e) {
         if (!cancelled) setPromotions([]);
@@ -282,68 +285,38 @@ const HomePage = () => {
   return (
     <div className="animate-fade-in">
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className={`bg-gradient-to-br ${heroSlides[currentSlide].gradient} min-h-[600px] md:min-h-[700px] transition-all duration-1000`}>
-          <div className="container-custom relative z-10">
-            <div className="grid md:grid-cols-2 gap-8 items-center min-h-[600px] md:min-h-[700px] py-12">
-              <div className="space-y-6 md:space-y-8 animate-fade-in-up">
-                <div>
-                  <span className="badge-primary mb-4 inline-flex">
-                    {heroSlides[currentSlide].badgeText || 'PC Parts & Tech'}
-                  </span>
-                  <h1 className="text-display-xl md:text-[4rem] leading-[1.05] tracking-tight text-slate-900 whitespace-pre-line">
-                    {heroSlides[currentSlide].title}
-                  </h1>
-                </div>
-                <p className="text-body-lg text-slate-500 max-w-lg">{heroSlides[currentSlide].subtitle}</p>
-                <div className="flex items-center gap-4">
-                  <Link to={heroSlides[currentSlide].ctaLink} className="btn-primary btn-lg group">
-                    {heroSlides[currentSlide].cta}
-                    <HiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                  <Link to="/products" className="btn-secondary btn-lg">Browse All</Link>
-                </div>
-                <div className="flex items-center gap-2 pt-4">
-                  {heroSlides.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentSlide(i)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-blue-500' : 'w-1.5 bg-slate-300 hover:bg-slate-400'}`}
-                    />
-                  ))}
-                </div>
+      <section className="relative overflow-hidden bg-slate-900 shadow-2xl">
+        <div className={`absolute inset-0 bg-gradient-to-br ${heroSlides[currentSlide].gradient} transition-colors duration-1000`}></div>
+        <div className="absolute inset-0 bg-cover bg-center opacity-10 mix-blend-overlay transition-all duration-1000" style={{ backgroundImage: `url('${heroSlides[currentSlide].image}')` }}></div>
+        <div className="container-custom relative z-10 transition-all duration-1000">
+          <div className="flex flex-col justify-center items-center text-center min-h-[600px] md:min-h-[700px] py-12 max-w-4xl mx-auto">
+            <div className="space-y-6 md:space-y-8 animate-fade-in-up flex flex-col items-center">
+              <div>
+                <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 text-blue-300 text-sm font-semibold mb-6 border border-blue-500/30 backdrop-blur-md">
+                  {heroSlides[currentSlide].badgeText || 'PC Parts & Tech'}
+                </span>
+                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.05] drop-shadow-lg text-white whitespace-pre-line">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">{heroSlides[currentSlide].title}</span>
+                </h1>
               </div>
-              <div className="relative hidden md:block">
-                <div className="relative z-10 animate-float">
-                  <div className="relative rounded-3xl overflow-hidden shadow-xl">
-                    <img src={heroSlides[currentSlide].image} alt="Hero" className="w-full h-[500px] object-cover transition-all duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
-                  </div>
-                </div>
-                <div className="absolute -top-8 -right-8 w-64 h-64 bg-blue-200/30 rounded-full blur-3xl" />
-                <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-blue-100/40 rounded-full blur-3xl" />
-                <div className="absolute -left-6 top-1/4 card-glass p-3 animate-fade-in-up">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-body-sm">✓</span>
-                    </div>
-                    <div>
-                      <p className="text-caption font-semibold text-slate-800">Trusted</p>
-                      <p className="text-[10px] text-slate-500">Top brands</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="absolute -right-4 bottom-1/4 card-glass p-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-body-sm">⚡</span>
-                    </div>
-                    <div>
-                      <p className="text-caption font-semibold text-slate-800">Fast Delivery</p>
-                      <p className="text-[10px] text-slate-500">2-3 days</p>
-                    </div>
-                  </div>
-                </div>
+              <p className="text-lg md:text-2xl text-blue-100 max-w-2xl mb-10 font-light opacity-90">{heroSlides[currentSlide].subtitle}</p>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <Link to={heroSlides[currentSlide].ctaLink} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-lg transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] hover:-translate-y-1 flex items-center group">
+                  {heroSlides[currentSlide].cta}
+                  <HiArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link to="/products" className="px-8 py-4 bg-white/10 text-white border border-white/20 rounded-full font-bold text-lg hover:bg-white/20 transition-all duration-300">
+                  Browse All
+                </Link>
+              </div>
+              <div className="flex items-center gap-2 pt-4 justify-center">
+                {heroSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentSlide(i)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)]' : 'w-1.5 bg-slate-600 hover:bg-slate-400'}`}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -431,7 +404,7 @@ const HomePage = () => {
                   />
                 )}
                 <div className="relative z-10">
-                  
+
                   <h3 className="text-display-sm text-white mb-2">{promo.title}</h3>
                   <p className="text-body-md text-white opacity-90 mb-4">{promo.subtitle}</p>
                   {promo.code && (
