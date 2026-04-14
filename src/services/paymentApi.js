@@ -1,4 +1,4 @@
-import { API } from './axiosConfig';
+import { apiService } from './api';
 
 export const paymentApi = {
   /**
@@ -8,8 +8,8 @@ export const paymentApi = {
    */
   createVNPayUrl: async (payload) => {
     try {
-      const response = await API.post('/payments/vnpay/create-url', payload);
-      return response;
+      const response = await apiService.post('/payments/vnpay/create-url', payload);
+      return response.data;
     } catch (error) {
       console.error('Error creating VNPay URL:', error);
       throw error;
@@ -22,8 +22,8 @@ export const paymentApi = {
    */
   verifyVNPayReturn: async (queryString) => {
     try {
-      const response = await API.get(`/payments/vnpay/verify${queryString}`);
-      return response;
+      const response = await apiService.get(`/payments/vnpay/verify${queryString}`);
+      return response.data;
     } catch (error) {
       console.error('Error verifying VNPay return:', error);
       throw error;

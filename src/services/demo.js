@@ -1,6 +1,6 @@
-import apiConfig from './axiosConfig';
+import { apiService } from './api';
 
 export const apiGetDemo = (rqBody) => {
   const url = `/api/dashboard/information`;
-  return apiConfig.post(url, rqBody);
+  return apiService.post(url, rqBody);
 };

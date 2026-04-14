@@ -9,17 +9,9 @@ import {
   HiOutlineChatBubbleLeftRight,
 } from 'react-icons/hi2';
 import { ProductCard } from '../../components/shop';
-import { promotions as mockPromotions } from '../../data/mockData';
 import { useCategoryStore } from '../../store/categoryStore';
 import { useProductStore } from '../../store/productStore';
 import { apiService } from '../../services';
-import { formatVnd } from '../../utils/price';
-
-const PROMO_THEMES = [
-  { bgColor: 'from-blue-500 to-blue-700', textColor: 'white' },
-  { bgColor: 'from-blue-600 to-indigo-600', textColor: 'white' },
-  { bgColor: 'from-slate-700 to-slate-900', textColor: 'white' },
-];
 
 const STATIC_HERO_SLIDES = [
   {
@@ -116,8 +108,6 @@ const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [dealProducts, setDealProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
-  const [promotions, setPromotions] = useState([]);
-  const [isPromotionsLoading, setIsPromotionsLoading] = useState(false);
   const [heroSlides, setHeroSlides] = useState(STATIC_HERO_SLIDES);
   const [categorySections, setCategorySections] = useState([]);
 
@@ -192,79 +182,6 @@ const HomePage = () => {
     loadCategoryProducts();
     return () => { active = false; };
   }, [categories]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadPromotions = async () => {
-      setIsPromotionsLoading(true);
-      try {
-        const { data: response } = await apiService.get('/promotions');
-        const items = response?.data?.items ?? response?.data ?? response?.items ?? [];
-
-        const now = new Date();
-        const activeItems = (Array.isArray(items) ? items : [])
-          .filter((p) => {
-            const statusOk = p?.status === 'active' || p?.status === 1 || p?.status === true;
-            const startOk = p?.startDate ? new Date(p.startDate) <= now : true;
-            const endOk = p?.endDate ? new Date(p.endDate) >= now : true;
-            return statusOk && startOk && endOk;
-          })
-          .slice(0, 3);
-
-        const mapped = activeItems.map((p, idx) => {
-          const theme = PROMO_THEMES[idx % PROMO_THEMES.length];
-          const discountText =
-            p?.discountType === 'percent'
-              ? `-${Math.round(Number(p?.discountValue ?? 0))}%`
-              : `-${formatVnd(Number(p?.discountValue ?? 0))}`;
-
-          return {
-            id: p?.id,
-            title: p?.title ?? '',
-            subtitle: p?.description ?? '',
-            bannerImage: p?.bannerImage ?? '',
-            code: discountText,
-            bgColor: theme.bgColor,
-            textColor: theme.textColor,
-          };
-        });
-
-        const heroMapped = activeItems
-          .filter((p) => p?.bannerImage)
-          .slice(0, 3)
-          .map((p, idx) => {
-            const discountText =
-              p?.discountType === 'percent'
-                ? `-${Math.round(Number(p?.discountValue ?? 0))}%`
-                : `-${formatVnd(Number(p?.discountValue ?? 0))}`;
-
-            return {
-              title: p?.title ?? '',
-              subtitle: p?.description ?? '',
-              badgeText: discountText,
-              cta: 'Shop Now',
-              ctaLink: '/products',
-              image: p?.bannerImage ?? '',
-              gradient: HERO_GRADIENTS[idx % HERO_GRADIENTS.length],
-            };
-          });
-
-        if (!cancelled) {
-          setPromotions(mapped);
-          // Removed API setting for heroBanner to keep the fixed STATIC_HERO_SLIDES logic
-        }
-      } catch (e) {
-        if (!cancelled) setPromotions([]);
-      } finally {
-        if (!cancelled) setIsPromotionsLoading(false);
-      }
-    };
-
-    loadPromotions();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!heroSlides?.length) return;
@@ -379,48 +296,6 @@ const HomePage = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {featuredProducts.slice(0, 4).map((p) => (
               <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Promos */}
-      <section className="section">
-        <div className="container-custom">
-          <div className="grid md:grid-cols-2 gap-6">
-            {mockPromotions.slice(0, 2).map((promo) => (
-              <Link
-                key={promo.id}
-                to="/products"
-                className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${promo.bgColor} p-8 md:p-10 group min-h-[220px] flex flex-col justify-between`}
-              >
-                {promo.bannerImage && (
-                  <img
-                    src={promo.bannerImage}
-                    alt={promo.title}
-                    className="absolute inset-0 w-full h-full object-cover opacity-20"
-                    loading="lazy"
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                )}
-                <div className="relative z-10">
-
-                  <h3 className="text-display-sm text-white mb-2">{promo.title}</h3>
-                  <p className="text-body-md text-white opacity-90 mb-4">{promo.subtitle}</p>
-                  {promo.code && (
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-lg text-sm font-mono font-semibold text-white">
-                      Code: {promo.code}
-                    </span>
-                  )}
-                </div>
-                <div className="relative z-10 mt-4">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 rounded-xl text-white font-medium hover:bg-white/30 transition-colors">
-                    Shop Now <HiArrowRight className="w-4 h-4" />
-                  </span>
-                </div>
-                <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full" />
-                <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-white/10 rounded-full" />
-              </Link>
             ))}
           </div>
         </div>

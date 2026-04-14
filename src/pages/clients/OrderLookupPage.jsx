@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '../../context/LanguageContext';
-import { orderApi } from '../../api/orderApi';
+import { orderApi } from '../../services/orderApi';
 import { formatVnd } from '../../utils/price';
 import { HiOutlineMagnifyingGlass, HiOutlineExclamationCircle, HiOutlineClock, HiOutlineTruck, HiOutlineCheckCircle, HiOutlineXCircle } from 'react-icons/hi2';
 

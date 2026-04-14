@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, User, Loader2, Maximize2, Minimize2 } from 'lucide-react';
-import { chatApi } from '../../api/chatApi';
+import { chatApi } from '../../services/chatApi';
 
 const formatBotMessage = (text) => {
   if (typeof text !== 'string') return text;

@@ -1,37 +1,38 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ShoppingCart, Search, Download } from 'lucide-react';
+import { ShoppingCart, Search, RefreshCw } from 'lucide-react';
 import ToastNotification from '../../../components/common/ToastNotification/ToastNotification';
-import { orderApi } from '../../../api/orderApi';
+import { orderApi } from '../../../services/orderApi';
 import { formatVnd } from '../../../utils/price';
 
 const ORDER_STATUS_OPTIONS = [
-  { value: 0, label: 'Chờ xác nhận' }, // pending
-  { value: 1, label: 'Đã xác nhận' }, // confirmed
-  { value: 2, label: 'Đang xử lý' }, // processing
-  { value: 3, label: 'Đang giao hàng' }, // shipping
-  { value: 4, label: 'Hoàn thành' }, // completed
-  { value: 5, label: 'Đã hủy' }, // cancelled
-  { value: 6, label: 'Đã hoàn tiền' }, // refunded
+  { value: 0, label: 'Chờ xác nhận', color: 'text-amber-600' }, // pending
+  { value: 1, label: 'Đã xác nhận', color: 'text-blue-600' }, // confirmed
+  { value: 2, label: 'Đang xử lý', color: 'text-indigo-600' }, // processing
+  { value: 3, label: 'Đang giao hàng', color: 'text-purple-600' }, // shipping
+  { value: 4, label: 'Hoàn thành', color: 'text-emerald-600' }, // completed
+  { value: 5, label: 'Đã hủy', color: 'text-rose-600' }, // cancelled
+  { value: 6, label: 'Đã hoàn tiền', color: 'text-slate-600' }, // refunded
 ];
 
 const PAYMENT_STATUS_OPTIONS = [
-  { value: 0, label: 'Chưa thanh toán' }, // unpaid
-  { value: 1, label: 'Đã thanh toán' }, // paid
-  { value: 2, label: 'Thanh toán thất bại' }, // failed
-  { value: 3, label: 'Đã hoàn tiền' }, // refunded
-  { value: 4, label: 'Hoàn tiền một phần' }, // partially_refunded
+  { value: 0, label: 'Chưa thanh toán', color: 'text-amber-600' }, // unpaid
+  { value: 1, label: 'Đã thanh toán', color: 'text-emerald-600' }, // paid
+  { value: 2, label: 'Thanh toán thất bại', color: 'text-rose-600' }, // failed
+  { value: 3, label: 'Đã hoàn tiền', color: 'text-slate-600' }, // refunded
+  { value: 4, label: 'Hoàn tiền một phần', color: 'text-blue-600' }, // partially_refunded
 ];
 
 const SHIPMENT_STATUS_OPTIONS = [
-  { value: 0, label: 'Chờ xử lý giao hàng' }, // pending
-  { value: 1, label: 'Sẵn sàng giao' }, // ready
-  { value: 2, label: 'Đang vận chuyển' }, // shipped
-  { value: 3, label: 'Đã giao' }, // delivered
-  { value: 4, label: 'Đã hoàn trả' }, // returned
-  { value: 5, label: 'Đã hủy giao hàng' }, // cancelled
+  { value: 0, label: 'Chờ xử lý giao hàng', color: 'text-amber-600' }, // pending
+  { value: 1, label: 'Sẵn sàng giao', color: 'text-blue-600' }, // ready
+  { value: 2, label: 'Đang vận chuyển', color: 'text-purple-600' }, // shipped
+  { value: 3, label: 'Đã giao', color: 'text-emerald-600' }, // delivered
+  { value: 4, label: 'Đã hoàn trả', color: 'text-slate-600' }, // returned
+  { value: 5, label: 'Đã hủy giao hàng', color: 'text-rose-600' }, // cancelled
 ];
 
 const getStatusLabel = (options, value) => options.find((item) => item.value === Number(value))?.label || `#${value}`;
+const getStatusColor = (options, value) => options.find((item) => item.value === Number(value))?.color || 'text-slate-600';
 const normalizeStatusValue = (value, fallback = 0) => (value == null ? fallback : Number(value));
 
 const OrdersManagementPage = () => {
@@ -117,7 +118,7 @@ const OrdersManagementPage = () => {
           onClick={() => fetchOrders().catch(() => { })}
           className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm"
         >
-          <Download className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" />
           <span>Làm mới dữ liệu</span>
         </button>
       </div>
@@ -210,15 +211,15 @@ const OrdersManagementPage = () => {
                           onChange={(e) =>
                             handleUpdateOrderStatus(order.orderId, { orderStatus: Number(e.target.value) })
                           }
-                          className="min-w-[150px] px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70"
+                          className={`min-w-[150px] px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70 ${getStatusColor(ORDER_STATUS_OPTIONS, order.status)}`}
                         >
                           {ORDER_STATUS_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
+                            <option key={option.value} value={option.value} className="text-slate-800">
                               {option.label}
                             </option>
                           ))}
                           {!ORDER_STATUS_OPTIONS.some((option) => option.value === normalizeStatusValue(order.status, 0)) && (
-                            <option value={normalizeStatusValue(order.status, 0)}>
+                            <option value={normalizeStatusValue(order.status, 0)} className="text-slate-800">
                               {getStatusLabel(ORDER_STATUS_OPTIONS, order.status)}
                             </option>
                           )}
@@ -231,15 +232,15 @@ const OrdersManagementPage = () => {
                           onChange={(e) =>
                             handleUpdateOrderStatus(order.orderId, { paymentStatus: Number(e.target.value) })
                           }
-                          className="min-w-[150px] px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70"
+                          className={`min-w-[150px] px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70 ${getStatusColor(PAYMENT_STATUS_OPTIONS, order.paymentStatus)}`}
                         >
                           {PAYMENT_STATUS_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
+                            <option key={option.value} value={option.value} className="text-slate-800">
                               {option.label}
                             </option>
                           ))}
                           {!PAYMENT_STATUS_OPTIONS.some((option) => option.value === normalizeStatusValue(order.paymentStatus, 0)) && (
-                            <option value={normalizeStatusValue(order.paymentStatus, 0)}>
+                            <option value={normalizeStatusValue(order.paymentStatus, 0)} className="text-slate-800">
                               {getStatusLabel(PAYMENT_STATUS_OPTIONS, order.paymentStatus)}
                             </option>
                           )}
@@ -252,15 +253,15 @@ const OrdersManagementPage = () => {
                           onChange={(e) =>
                             handleUpdateOrderStatus(order.orderId, { shipmentStatus: Number(e.target.value) })
                           }
-                          className="min-w-[150px] px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70"
+                          className={`min-w-[150px] px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-70 ${getStatusColor(SHIPMENT_STATUS_OPTIONS, order.shipmentStatus)}`}
                         >
                           {SHIPMENT_STATUS_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
+                            <option key={option.value} value={option.value} className="text-slate-800">
                               {option.label}
                             </option>
                           ))}
                           {!SHIPMENT_STATUS_OPTIONS.some((option) => option.value === normalizeStatusValue(order.shipmentStatus, 0)) && (
-                            <option value={normalizeStatusValue(order.shipmentStatus, 0)}>
+                            <option value={normalizeStatusValue(order.shipmentStatus, 0)} className="text-slate-800">
                               {getStatusLabel(SHIPMENT_STATUS_OPTIONS, order.shipmentStatus)}
                             </option>
                           )}

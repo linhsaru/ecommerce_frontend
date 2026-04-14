@@ -3,7 +3,7 @@ import ToastNotification from '../../components/common/ToastNotification/ToastNo
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { apiService } from '../../services';
-import { orderApi } from '../../api/orderApi';
+import { orderApi } from '../../services/orderApi';
 import { formatVnd } from '../../utils/price';
 import { useTranslation } from '../../context/LanguageContext';
 import {
