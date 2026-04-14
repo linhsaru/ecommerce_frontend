@@ -191,6 +191,8 @@ export default {
   summary: "Summary",
   number_of_components: "Number of components",
   total_price: "Total Price",
+  order_placed_success: "Order placed successfully!",
+  order_placed_error: "An error occurred while creating the order. Please try again!",
 
   // Product
   product: "Product",

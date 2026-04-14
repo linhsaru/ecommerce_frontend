@@ -212,6 +212,8 @@ export default {
   summary: "Tóm tắt cấu hình",
   number_of_components: "Số lượng linh kiện",
   total_price: "Tổng tiền",
+  order_placed_success: "Đặt hàng thành công!",
+  order_placed_error: "Đã có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại!",
 
   // Footer
   footer_stay_in_loop: 'Đăng ký nhận tin',

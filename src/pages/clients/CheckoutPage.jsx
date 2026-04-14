@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   HiOutlineCheckCircle,
@@ -55,6 +55,7 @@ const CheckoutPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNo, setOrderNo] = useState('');
+  const orderPlacedRef = useRef(false);
 
   const defaultAddress = isAuthenticated && user
     ? (userAddresses.find((a) => a.user_id === user.id && a.is_default) || userAddresses.find((a) => a.user_id === user.id))
@@ -168,7 +169,7 @@ const CheckoutPage = () => {
 
       if (!createdOrderId) {
         console.error('Không nhận được createdOrderId từ backend:', orderResponse);
-        showToast('Lỗi: Không lấy được ID đơn hàng sau khi tạo. Vui lòng kiểm tra lại API tạo đơn hàng.', 'error');
+        showToast(t('order_placed_error'), 'error');
         setIsSubmitting(false);
         return;
       }
@@ -189,9 +190,11 @@ const CheckoutPage = () => {
           return;
         } else {
           console.error("VNPay Error - No paymentUrl in response:", response);
-          showToast('Lỗi khi tạo giao dịch VNPay. Vui lòng thử lại!', 'error');
+          showToast(t('order_placed_error'), 'error');
         }
       } else {
+        showToast(t('order_placed_success'), 'success');
+        orderPlacedRef.current = true;
         await new Promise((r) => setTimeout(r, 1200));
         setOrderNo(createdOrderNo);
         setOrderPlaced(true);
@@ -201,7 +204,7 @@ const CheckoutPage = () => {
       }
     } catch (error) {
       console.error("Order submission failed:", error);
-      showToast('Đã có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại!', 'error');
+      showToast(t('order_placed_error'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -211,6 +214,7 @@ const CheckoutPage = () => {
     return {
       userId: user?.id,
       recipientEmail: shippingData.ship_email,
+      recipientName: shippingData.ship_recipient,
       shippingAddress: shippingData.ship_line1,
       phoneNumber: shippingData.ship_phone,
       ward: shippingData.ship_ward || '',
@@ -224,12 +228,12 @@ const CheckoutPage = () => {
   };
 
   useEffect(() => {
-    if (items.length === 0 && !orderPlaced) navigate('/cart');
+    if (items.length === 0 && !orderPlaced && !orderPlacedRef.current) navigate('/cart');
   }, [items.length, orderPlaced, navigate]);
 
   if (orderPlaced) {
     return (
-      <div className="animate-fade-in min-h-[80vh] flex items-center justify-center">
+      <div className="animate-fade-in min-h-[80vh] flex flex-col items-center justify-center relative">
         <div className="container-custom py-20 text-center max-w-lg">
           <div className="w-20 h-20 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
             <HiOutlineCheckCircle className="w-10 h-10 text-green-600" />
@@ -247,13 +251,19 @@ const CheckoutPage = () => {
             </Link>
           </div>
         </div>
+        <ToastNotification
+          isVisible={toastConfig.isVisible}
+          message={toastConfig.message}
+          status={toastConfig.status}
+          onClose={() => setToastConfig((prev) => ({ ...prev, isVisible: false }))}
+        />
       </div>
     );
   }
 
 
 
-  if (items.length === 0 && !orderPlaced) return null;
+  if (items.length === 0 && !orderPlaced && !orderPlacedRef.current) return null;
 
   return (
     <div className="animate-fade-in">
