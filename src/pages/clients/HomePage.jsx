@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from '../../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import {
@@ -13,44 +13,7 @@ import { useCategoryStore } from '../../store/categoryStore';
 import { useProductStore } from '../../store/productStore';
 import { apiService } from '../../services';
 
-const STATIC_HERO_SLIDES = [
-  {
-    title: 'PC Lắp Ráp\nChuyên Nghiệp',
-    subtitle: 'Tối ưu hóa sức mạnh với các linh kiện cao cấp từ những thương hiệu hàng đầu thế giới.',
-    badgeText: 'PC Cao Cấp',
-    cta: 'Khám phá ngay',
-    ctaLink: '/products',
-    image: 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&q=80&w=2000',
-    gradient: 'from-slate-900 via-blue-900 to-slate-900',
-  },
-  {
-    title: 'Trải Nghiệm\nGaming Đỉnh Cao',
-    subtitle: 'Nâng cấp góc máy của bạn với trang thiết bị cực chất, chinh phục mọi tựa game AAA.',
-    badgeText: 'Gaming Setup',
-    cta: 'Xem sản phẩm',
-    ctaLink: '/products',
-    image: 'https://images.unsplash.com/photo-1600861194942-f883de0dfe96?auto=format&fit=crop&q=80&w=2000',
-    gradient: 'from-slate-900 via-purple-900 to-slate-900',
-  },
-  {
-    title: 'Sức Mạnh\nTừ Tương Lai',
-    subtitle: 'Vi xử lý đời mới với hiệu năng vượt trội, đáp ứng tốt mọi tựa game và công việc.',
-    badgeText: 'Linh Kiện Mới',
-    cta: 'Nhận ưu đãi',
-    ctaLink: '/products',
-    image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&q=80&w=2000',
-    gradient: 'from-slate-900 via-indigo-900 to-slate-900',
-  },
-  {
-    title: 'Đột Phá\nKhông Giới Hạn',
-    subtitle: 'Công nghệ tiên tiến luôn giữ cho máy tính của bạn hoạt động ở trạng thái xuất sắc nhất.',
-    badgeText: 'Công Nghệ Đỉnh',
-    cta: 'Mua sắm ngay',
-    ctaLink: '/products',
-    image: 'https://images.unsplash.com/photo-1614624532983-4ce03382d63d?auto=format&fit=crop&q=80&w=2000',
-    gradient: 'from-slate-900 via-cyan-900 to-slate-900',
-  }
-];
+
 
 const mapApiProductToCardViewModel = (p, { isNew = false } = {}) => {
   const price = p?.originalPrice ?? 0;
@@ -83,6 +46,9 @@ const mapApiProductToCardViewModel = (p, { isNew = false } = {}) => {
     name: p?.name ?? '',
     description: p?.description ?? '',
     brand: p?.brandName ?? '',
+    primaryVariantId: p?.primaryVariantId ?? null,
+    stockCount: typeof p?.stockCount === 'number' ? p.stockCount : p?.stockCount,
+    inStock: typeof p?.inStock === 'boolean' ? p.inStock : p?.status === 1,
     // fields used by ProductCard/PriceDisplay
     price,
     discountPrice,
@@ -108,8 +74,46 @@ const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [dealProducts, setDealProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
-  const [heroSlides, setHeroSlides] = useState(STATIC_HERO_SLIDES);
   const [categorySections, setCategorySections] = useState([]);
+
+  const heroSlides = useMemo(() => [
+    {
+      title: t('hero_slide1_title'),
+      subtitle: t('hero_slide1_subtitle'),
+      badgeText: t('hero_slide1_badge'),
+      cta: t('hero_slide1_cta'),
+      ctaLink: '/products',
+      image: 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&q=80&w=2000',
+      gradient: 'from-slate-900 via-blue-900 to-slate-900',
+    },
+    {
+      title: t('hero_slide2_title'),
+      subtitle: t('hero_slide2_subtitle'),
+      badgeText: t('hero_slide2_badge'),
+      cta: t('hero_slide2_cta'),
+      ctaLink: '/products',
+      image: 'https://images.unsplash.com/photo-1600861194942-f883de0dfe96?auto=format&fit=crop&q=80&w=2000',
+      gradient: 'from-slate-900 via-purple-900 to-slate-900',
+    },
+    {
+      title: t('hero_slide3_title'),
+      subtitle: t('hero_slide3_subtitle'),
+      badgeText: t('hero_slide3_badge'),
+      cta: t('hero_slide3_cta'),
+      ctaLink: '/products',
+      image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&q=80&w=2000',
+      gradient: 'from-slate-900 via-indigo-900 to-slate-900',
+    },
+    {
+      title: t('hero_slide4_title'),
+      subtitle: t('hero_slide4_subtitle'),
+      badgeText: t('hero_slide4_badge'),
+      cta: t('hero_slide4_cta'),
+      ctaLink: '/products',
+      image: 'https://images.unsplash.com/photo-1614624532983-4ce03382d63d?auto=format&fit=crop&q=80&w=2000',
+      gradient: 'from-slate-900 via-cyan-900 to-slate-900',
+    }
+  ], [t]);
 
   useEffect(() => {
     fetchCategories({ page: 1, pageSize: 8 }).catch(() => { });
@@ -147,7 +151,7 @@ const HomePage = () => {
     let active = true;
     const loadCategoryProducts = async () => {
       const customSections = [
-        { slug: 'pc-nc', name: 'Sản phẩm PC cao cấp' }
+        { slug: 'pc-nc', name: t('premium_pc_products') }
       ];
 
       if (categories && categories.length > 0) {
@@ -193,10 +197,10 @@ const HomePage = () => {
   }, [heroSlides.length]);
 
   const features = [
-    { icon: HiOutlineTruck, title: t('freeship'), desc: 'On orders over $199' },
-    { icon: HiOutlineShieldCheck, title: t('secure_payment'), desc: '100% protected' },
-    { icon: HiOutlineArrowPath, title: t('easy_return'), desc: '30-day return policy' },
-    { icon: HiOutlineChatBubbleLeftRight, title: t('tech_support'), desc: 'Expert advice' },
+    { icon: HiOutlineTruck, title: t('feature_freeship'), desc: t('feature_freeship_desc') },
+    { icon: HiOutlineShieldCheck, title: t('feature_secure_payment'), desc: t('feature_secure_payment_desc') },
+    { icon: HiOutlineArrowPath, title: t('feature_easy_return'), desc: t('feature_easy_return_desc') },
+    { icon: HiOutlineChatBubbleLeftRight, title: t('feature_tech_support'), desc: t('feature_tech_support_desc') },
   ];
 
   return (
@@ -206,7 +210,7 @@ const HomePage = () => {
         <div className={`absolute inset-0 bg-gradient-to-br ${heroSlides[currentSlide].gradient} transition-colors duration-1000`}></div>
         <div className="absolute inset-0 bg-cover bg-center opacity-10 mix-blend-overlay transition-all duration-1000" style={{ backgroundImage: `url('${heroSlides[currentSlide].image}')` }}></div>
         <div className="container-custom relative z-10 transition-all duration-1000">
-          <div className="flex flex-col justify-center items-center text-center min-h-[600px] md:min-h-[700px] py-12 max-w-4xl mx-auto">
+          <div className="flex flex-col justify-center items-center text-center min-h-[600px] md:min-h-[700px] pt-12 pb-24 md:pb-28 max-w-4xl mx-auto">
             <div className="space-y-6 md:space-y-8 animate-fade-in-up flex flex-col items-center">
               <div>
                 <span className="inline-block py-1 px-3 rounded-full bg-blue-500/20 text-blue-300 text-sm font-semibold mb-6 border border-blue-500/30 backdrop-blur-md">
@@ -223,7 +227,7 @@ const HomePage = () => {
                   <HiArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link to="/products" className="px-8 py-4 bg-white/10 text-white border border-white/20 rounded-full font-bold text-lg hover:bg-white/20 transition-all duration-300">
-                  Browse All
+                  {t('hero_browse_all')}
                 </Link>
               </div>
               <div className="flex items-center gap-2 pt-4 justify-center">
@@ -240,21 +244,23 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="border-y border-slate-100 bg-white">
-        <div className="container-custom py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {features.map((f, i) => (
-              <div key={i} className="flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                  <f.icon className="w-5 h-5 text-blue-600" />
+      {/* Features - Floating Info Bar */}
+      <section className="relative z-20 -mt-10 md:-mt-16 mb-12">
+        <div className="container-custom">
+          <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 p-6 md:p-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8">
+              {features.map((f, i) => (
+                <div key={i} className="flex items-center gap-4 group cursor-pointer transition-transform duration-300 hover:-translate-y-1">
+                  <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
+                    <f.icon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-800 mb-0.5 group-hover:text-blue-600 transition-colors duration-300">{f.title}</h3>
+                    <p className="text-xs sm:text-sm text-slate-500 line-clamp-2 md:line-clamp-none">{f.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-body-sm font-semibold text-slate-800">{f.title}</p>
-                  <p className="text-caption text-slate-500">{f.desc}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -356,7 +362,7 @@ const HomePage = () => {
                 <Link to="/products" className="btn btn-lg bg-white text-blue-600 hover:bg-slate-50 shadow-lg">
                   {t('shop_now')}
                 </Link>
-                <Link to="/products#ai-builder" className="btn btn-lg bg-white/10 text-white border border-white/30 hover:bg-white/20">
+                <Link to="/build-pc" className="btn btn-lg bg-white/10 text-white border border-white/30 hover:bg-white/20">
                   {t('try_ai_builder')}
                 </Link>
               </div>

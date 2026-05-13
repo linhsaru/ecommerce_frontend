@@ -27,7 +27,7 @@ const InventoryManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchInventories().catch(() => {});
+    fetchInventories().catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -126,21 +126,36 @@ const InventoryManagementPage = () => {
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full sm:w-96">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
+        <div className="relative w-full md:flex-1 md:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Tìm kiếm sản phẩm trong kho..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors bg-white w-full sm:w-auto justify-center">
-          <Filter className="w-4 h-4" />
-          <span>Lọc</span>
-        </button>
+
+        <div className="flex items-center justify-end gap-3 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            <span>Xuất Excel</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => fetchInventories().catch(() => { })}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm"
+          >
+            <RotateCw className="w-4 h-4" />
+            <span>Làm mới</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -148,25 +163,6 @@ const InventoryManagementPage = () => {
           {error}
         </div>
       )}
-
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={handleExportExcel}
-          className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm"
-        >
-          <Download className="w-4 h-4" />
-          <span>Xuất Excel</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => fetchInventories().catch(() => {})}
-          className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm"
-        >
-          <RotateCw className="w-4 h-4" />
-          <span>Làm mới</span>
-        </button>
-      </div>
 
       {warehouseSummary.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -266,7 +262,7 @@ const InventoryManagementPage = () => {
         onClose={() => setIsStockModalOpen(false)}
         inventories={inventories}
         initialSelection={stockModalSelection}
-        onSuccess={() => fetchInventories().catch(() => {})}
+        onSuccess={() => fetchInventories().catch(() => { })}
       />
     </div>
   );

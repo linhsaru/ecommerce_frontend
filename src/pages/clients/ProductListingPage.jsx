@@ -374,7 +374,11 @@ const ProductListingPage = () => {
                 onClick={() => setPriceSlider([priceRange.min, priceRange.max])}
                 className="badge-primary flex items-center gap-1 hover:bg-blue-100"
               >
-                {formatVnd(priceSlider[0])} - {formatVnd(priceSlider[1])}
+                {priceSlider[1] >= 999999999 
+                  ? `Trên ${formatVnd(priceSlider[0])}` 
+                  : priceSlider[0] === 0 
+                    ? `Dưới ${formatVnd(priceSlider[1])}`
+                    : `${formatVnd(priceSlider[0])} - ${formatVnd(priceSlider[1])}`}
                 <HiOutlineXMark className="w-3 h-3" />
               </button>
             )}
@@ -411,6 +415,9 @@ const ProductListingPage = () => {
                       image: product.thumbnailUrl,
                       price: product.originalPrice ?? 0,
                       discountPrice: product.discountedPrice ?? null,
+                      primaryVariantId: product.primaryVariantId ?? null,
+                      stockCount: typeof product.stockCount === 'number' ? product.stockCount : product.stockCount,
+                      inStock: typeof product.inStock === 'boolean' ? product.inStock : product.status === 1,
                       rating: product.rating ?? 4.8,
                       reviewCount: product.reviewCount ?? 0,
                       badge: product.discountPercent

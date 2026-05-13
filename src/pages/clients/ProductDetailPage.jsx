@@ -34,6 +34,10 @@ const mapApiProductToViewModel = (p) => {
   }
 
   const primaryCategory = p.categories && p.categories.length > 0 ? p.categories[0] : null;
+  const variants = normalizeVariantsPayload(p?.variants ?? p?.Variants);
+  const totalStockCount = variants.length > 0
+    ? variants.reduce((sum, variant) => sum + getVariantStockCount(variant), 0)
+    : Math.max(0, Number(p?.stockCount ?? 0));
 
   return {
     id: p.id,
@@ -47,8 +51,8 @@ const mapApiProductToViewModel = (p) => {
     brand: p.brandName || '',
     categorySlug: primaryCategory ? primaryCategory.slug : '',
     category: primaryCategory ? primaryCategory.name : '',
-    inStock: p.status === 1,
-    stockCount: 10,
+    inStock: typeof p?.inStock === 'boolean' ? p.inStock : p.status === 1 && totalStockCount > 0,
+    stockCount: totalStockCount,
     rating: 4.8,
     reviewCount: 0,
     badge: p.discountPercent ? `-${Math.round(p.discountPercent)}%` : null,
@@ -59,6 +63,7 @@ const mapApiProductToViewModel = (p) => {
     images: images.length ? images : [],
     thumbnailUrl: p.thumbnailUrl ?? null,
     usage_tags: [],
+    variants,
   };
 };
 
@@ -66,6 +71,16 @@ const normalizeVariantsPayload = (raw) => {
   if (Array.isArray(raw)) return raw;
   if (raw && Array.isArray(raw.data)) return raw.data;
   return [];
+};
+
+const getVariantStockCount = (variant) => {
+  const value =
+    variant?.stockCount ??
+    variant?.stockQuantity ??
+    variant?.quantity ??
+    variant?.availableStock ??
+    0;
+  return Math.max(0, Number(value) || 0);
 };
 
 const SPEC_CHIP_SIZE_MAX_LEN = 24;
@@ -118,6 +133,33 @@ const extractColorSizeChips = (variantsData) => {
   return { colors: Array.from(colors), sizes: Array.from(sizes) };
 };
 
+const findVariantBySelection = (variants = [], selectedColor = '', selectedSize = '') => {
+  if (!Array.isArray(variants) || variants.length === 0) return null;
+
+  return variants.find((v) => {
+    let match = true;
+    if (selectedColor) {
+      const hasColor = v.specifications?.some((s) => {
+        const n = (s.name || '').toLowerCase().trim();
+        return (n === 'color' || n === 'màu sắc' || n === 'màu') && s.value === selectedColor;
+      });
+      if (!hasColor) match = false;
+    }
+    if (selectedSize) {
+      const hasSize = v.specifications?.some((s) => {
+        const n = (s.name || '').toLowerCase().trim();
+        return (
+          (n === 'size' || n === 'kích cỡ' || n === 'cỡ') &&
+          !isDimensionSpecName(n) &&
+          s.value === selectedSize
+        );
+      });
+      if (!hasSize) match = false;
+    }
+    return match;
+  }) || null;
+};
+
 const ProductDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -146,52 +188,48 @@ const ProductDetailPage = () => {
         } else {
           const mappedProduct = mapApiProductToViewModel(found);
 
-          try {
-            const { data: varResponse } = await apiService.get(`/products/${found.id}/variants`);
-            const variantsData = normalizeVariantsPayload(varResponse?.data ?? varResponse);
+          const variantsData = normalizeVariantsPayload(found?.variants ?? found?.Variants);
+          const primaryVariant =
+            variantsData.find(
+              (v) => (v.variantName || '').toLowerCase().trim() === 'default'
+            ) || variantsData[0];
 
-            const primaryVariant =
-              variantsData.find(
-                (v) => (v.variantName || '').toLowerCase().trim() === 'default'
-              ) || variantsData[0];
-
-            if (primaryVariant && typeof primaryVariant.price === 'number') {
-              const sale = primaryVariant.price;
-              const compare = primaryVariant.compareAt;
-              if (typeof compare === 'number' && compare > sale) {
-                mappedProduct.price = compare;
-                mappedProduct.discountPrice = sale;
-              } else {
-                mappedProduct.price = sale;
-                mappedProduct.discountPrice = null;
-              }
-              if (
-                mappedProduct.discountPrice != null &&
-                mappedProduct.price > mappedProduct.discountPrice
-              ) {
-                const pct = Math.round(
-                  ((mappedProduct.price - mappedProduct.discountPrice) / mappedProduct.price) * 100
-                );
-                mappedProduct.badge = `-${pct}%`;
-                mappedProduct.badgeColor = 'danger';
-              } else {
-                mappedProduct.badge = null;
-              }
+          if (primaryVariant && typeof primaryVariant.price === 'number') {
+            const sale = primaryVariant.price;
+            const compare = primaryVariant.compareAt;
+            if (typeof compare === 'number' && compare > sale) {
+              mappedProduct.price = compare;
+              mappedProduct.discountPrice = sale;
+            } else {
+              mappedProduct.price = sale;
+              mappedProduct.discountPrice = null;
             }
-
-            if (primaryVariant) {
-              const { rows, specifications } = buildSpecsFromVariant(primaryVariant);
-              mappedProduct.specificationRows = rows;
-              mappedProduct.specifications = specifications;
+            if (
+              mappedProduct.discountPrice != null &&
+              mappedProduct.price > mappedProduct.discountPrice
+            ) {
+              const pct = Math.round(
+                ((mappedProduct.price - mappedProduct.discountPrice) / mappedProduct.price) * 100
+              );
+              mappedProduct.badge = `-${pct}%`;
+              mappedProduct.badgeColor = 'danger';
+            } else {
+              mappedProduct.badge = null;
             }
-
-            const { colors, sizes } = extractColorSizeChips(variantsData);
-            mappedProduct.colors = colors;
-            mappedProduct.sizes = sizes;
-            mappedProduct.variants = variantsData;
-          } catch (varErr) {
-            console.error('Failed to fetch variants:', varErr);
           }
+
+          if (primaryVariant) {
+            const { rows, specifications } = buildSpecsFromVariant(primaryVariant);
+            mappedProduct.specificationRows = rows;
+            mappedProduct.specifications = specifications;
+          }
+
+          const { colors, sizes } = extractColorSizeChips(variantsData);
+          mappedProduct.colors = colors;
+          mappedProduct.sizes = sizes;
+          mappedProduct.variants = variantsData;
+          mappedProduct.stockCount = variantsData.reduce((sum, v) => sum + getVariantStockCount(v), 0);
+          mappedProduct.inStock = mappedProduct.stockCount > 0;
 
           setProduct(mappedProduct);
         }
@@ -256,52 +294,30 @@ const ProductDetailPage = () => {
   const toggleWishlist = useWishlistStore((state) => state.toggleItem);
   const isInWishlist = useWishlistStore((state) => (product ? state.isInWishlist(product.id) : false));
 
-  const getSelectedVariantId = () => {
-    let selectedVariantId = product.id;
-    if (product.variants && product.variants.length > 0) {
-      const selectedVariant = product.variants.find(v => {
-        let match = true;
-        if (selectedColor) {
-          const hasColor = v.specifications?.some((s) => {
-            const n = (s.name || '').toLowerCase().trim();
-            return (
-              (n === 'color' || n === 'màu sắc' || n === 'màu') &&
-              s.value === selectedColor
-            );
-          });
-          if (!hasColor) match = false;
-        }
-        if (selectedSize) {
-          const hasSize = v.specifications?.some((s) => {
-            const n = (s.name || '').toLowerCase().trim();
-            return (
-              (n === 'size' || n === 'kích cỡ' || n === 'cỡ') &&
-              !isDimensionSpecName(n) &&
-              s.value === selectedSize
-            );
-          });
-          if (!hasSize) match = false;
-        }
-        return match;
-      });
-      if (selectedVariant) {
-        selectedVariantId = selectedVariant.id;
-      }
+  const selectedVariant = useMemo(
+    () => findVariantBySelection(product?.variants, selectedColor, selectedSize),
+    [product?.variants, selectedColor, selectedSize]
+  );
+  const selectedVariantId = selectedVariant?.id ?? product?.id;
+  const selectedStockCount = getVariantStockCount(selectedVariant);
+  const isSelectedVariantOutOfStock = selectedStockCount <= 0;
+  const availableQuantity = Math.max(1, selectedStockCount);
+
+  useEffect(() => {
+    if (quantity > availableQuantity) {
+      setQuantity(availableQuantity);
     }
-    return selectedVariantId;
-  };
+  }, [quantity, availableQuantity]);
 
   const handleAddToCart = () => {
-    if (!product) return;
-    const variantId = getSelectedVariantId();
-    addToCart({ ...product, selectedColor, selectedSize, variantId }, quantity);
+    if (!product || isSelectedVariantOutOfStock) return;
+    addToCart({ ...product, selectedColor, selectedSize, variantId: selectedVariantId }, quantity);
     setToastConfig({ isVisible: true, message: `${t('add_to_cart_success')}`, status: 'success' });
   };
 
   const handleBuyNow = () => {
-    if (!product) return;
-    const variantId = getSelectedVariantId();
-    navigate('/checkout', { state: { buyNowItem: { ...product, selectedColor, selectedSize, variantId, quantity } } });
+    if (!product || isSelectedVariantOutOfStock) return;
+    navigate('/checkout', { state: { buyNowItem: { ...product, selectedColor, selectedSize, variantId: selectedVariantId, quantity } } });
   };
 
 
@@ -397,10 +413,10 @@ const ProductDetailPage = () => {
               <p className="text-body-sm text-primary-600 font-medium mb-1">{product.brand}</p>
               <h1 className="text-display-sm md:text-display-md text-neutral-900 mb-3">{product.name}</h1>
               <div className="flex items-center gap-4">
-                {product.inStock ? (
-                  <span className="badge-success">In Stock</span>
+                {!isSelectedVariantOutOfStock ? (
+                  <span className="badge-success">Còn hàng ({selectedStockCount})</span>
                 ) : (
-                  <span className="badge-danger">Out of Stock</span>
+                  <span className="badge-danger">Hết hàng</span>
                 )}
               </div>
             </div>
@@ -410,7 +426,7 @@ const ProductDetailPage = () => {
               <PriceDisplay price={product.price} discountPrice={product.discountPrice} size="lg" />
               {product.discountPrice && (
                 <p className="text-body-sm text-success-600 mt-1 font-medium">
-                  You save {formatVnd(product.price - product.discountPrice)}
+                  {t('you_save')} {formatVnd(product.price - product.discountPrice)}
                 </p>
               )}
             </div>
@@ -479,12 +495,12 @@ const ProductDetailPage = () => {
             {/* Quantity & Add to Cart */}
             <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:flex-wrap sm:items-stretch lg:flex-nowrap lg:items-center">
               <div className="shrink-0 w-full sm:w-auto">
-                <QuantitySelector quantity={quantity} onChange={setQuantity} max={product.stockCount} />
+                <QuantitySelector quantity={quantity} onChange={setQuantity} max={availableQuantity} />
               </div>
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={!product.inStock}
+                disabled={isSelectedVariantOutOfStock}
                 className="btn-lg btn-primary flex-1 group w-full sm:min-w-[140px] whitespace-nowrap"
               >
                 {t('buy_now')}
@@ -492,7 +508,7 @@ const ProductDetailPage = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={!product.inStock}
+                disabled={isSelectedVariantOutOfStock}
                 className="btn-lg btn-outline px-6 bg-white rounded-xl border border-primary-600 text-primary-600 font-semibold shadow-soft-sm hover:bg-primary-50 transition-all duration-200 flex items-center justify-center whitespace-nowrap sm:min-w-0"
                 title="Add to Cart"
               >

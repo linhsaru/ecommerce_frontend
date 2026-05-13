@@ -1,6 +1,42 @@
 import { apiService } from './api';
 
 export const paymentApi = {
+  createVietQr: async (payload) => {
+    try {
+      const response = await apiService.post('/payments/vietqr/create', payload);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating VietQR payment:', error);
+      throw error;
+    }
+  },
+
+  getVietQrStatus: async ({ orderId, transactionRef }) => {
+    try {
+      const response = await apiService.get('/payments/vietqr/status', {
+        params: { orderId, transactionRef },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error checking VietQR payment status:', error);
+      throw error;
+    }
+  },
+
+  confirmVietQrPayment: async ({ transactionRef, amount, description }) => {
+    try {
+      const response = await apiService.post('/payments/vietqr/confirm', {
+        transactionRef,
+        amount,
+        description,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error confirming VietQR payment:', error);
+      throw error;
+    }
+  },
+
   /**
    * Called to generate the VNPay payment URL
    * @param {Object} payload { orderId: string, orderDescription: string }

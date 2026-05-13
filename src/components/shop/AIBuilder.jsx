@@ -1,45 +1,43 @@
 import { useState } from 'react';
 import { Bot, Zap } from 'lucide-react';
 import { apiService } from '../../services';
+import ToastNotification from '../common/ToastNotification/ToastNotification';
+import { useTranslation } from '../../context/LanguageContext';
 
 const BUDGET_OPTIONS = [
-  { id: 'under-15', label: 'Dưới 15 triệu' },
-  { id: '15-25', label: '15 - 25 triệu' },
-  { id: '25-40', label: '25 - 40 triệu' },
-  { id: '40-plus', label: 'Trên 40 triệu' },
+  { id: 'under-15', labelKey: 'ai_budget_under_15' },
+  { id: '15-25', labelKey: 'ai_budget_15_25' },
+  { id: '25-40', labelKey: 'ai_budget_25_40' },
+  { id: '40-plus', labelKey: 'ai_budget_40_plus' },
 ];
 
 const USAGE_OPTIONS = [
-  { id: 'office', label: 'Văn phòng / học tập' },
-  { id: 'gaming', label: 'Gaming' },
-  { id: 'creator', label: 'Design / Edit video' },
-  { id: 'ai-dev', label: 'AI / Lập trình' },
+  { id: 'office', labelKey: 'ai_usage_office' },
+  { id: 'gaming', labelKey: 'ai_usage_gaming' },
+  { id: 'creator', labelKey: 'ai_usage_creator' },
+  { id: 'ai-dev', labelKey: 'ai_usage_ai_dev' },
 ];
 
 const PERFORMANCE_OPTIONS = [
-  { id: 'fps', label: 'Ưu tiên FPS cao' },
-  { id: 'multitask', label: 'Ưu tiên đa nhiệm' },
-  { id: 'silent', label: 'Ưu tiên êm / mát' },
-  { id: 'efficiency', label: 'Ưu tiên tiết kiệm điện' },
+  { id: 'fps', labelKey: 'ai_perf_fps' },
+  { id: 'multitask', labelKey: 'ai_perf_multitask' },
+  { id: 'silent', labelKey: 'ai_perf_silent' },
+  { id: 'efficiency', labelKey: 'ai_perf_efficiency' },
 ];
 
 const BRAND_OPTIONS = [
-  { id: 'intel-nvidia', label: 'Intel + NVIDIA' },
-  { id: 'amd', label: 'Full AMD' },
-  { id: 'mixed', label: 'Pha trộn tối ưu giá' },
+  { id: 'intel-nvidia', labelKey: 'ai_brand_intel_nvidia' },
+  { id: 'amd', labelKey: 'ai_brand_amd' },
+  { id: 'mixed', labelKey: 'ai_brand_mixed' },
 ];
 
 const AIBuilder = ({ onApplySuggestion }) => {
+  const { t } = useTranslation();
+
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: (
-        <>
-          Chào bạn! Hãy chọn ngân sách, mục đích sử dụng, hiệu năng mong muốn và thương hiệu ưu tiên. Mình sẽ gợi ý cấu hình phù hợp.
-          <br /><br />
-          <span className="font-semibold text-amber-600">Lưu ý:</span> Các thành phần AI gợi ý chưa bao gồm các thiết bị ngoại vi như màn hình, bàn phím, chuột, tai nghe, webcam, loa, v.v...
-        </>
-      ),
+      isWelcome: true,
     },
   ]);
 
@@ -48,6 +46,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
   const [performance, setPerformance] = useState([]);
   const [brand, setBrand] = useState('no-pref');
   const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState({ visible: false, message: '', status: 'info' });
 
   const togglePerformance = (id) => {
     setPerformance((prev) =>
@@ -55,7 +54,10 @@ const AIBuilder = ({ onApplySuggestion }) => {
     );
   };
 
-  const getLabel = (list, id) => list.find((item) => item.id === id)?.label;
+  const getLabel = (list, id) => {
+    const item = list.find((item) => item.id === id);
+    return item ? t(item.labelKey) : undefined;
+  };
 
   const handleRecommend = async () => {
     if (!budget || !usage) return;
@@ -78,6 +80,17 @@ const AIBuilder = ({ onApplySuggestion }) => {
         timeout: 120000,
       });
       const root = response?.data ?? response;
+
+      if (root?.success === false) {
+        const hasNoBuildError = root?.errors?.some(e => e.code === 'NO_BUILD');
+        if (hasNoBuildError) {
+          setToast({ visible: true, message: t('ai_error_no_build'), status: 'error' });
+        } else {
+          setToast({ visible: true, message: root?.message || t('ai_error_general'), status: 'error' });
+        }
+        return;
+      }
+
       const suggestion = root?.data ?? root;
 
       if (typeof onApplySuggestion === 'function') {
@@ -86,6 +99,12 @@ const AIBuilder = ({ onApplySuggestion }) => {
 
     } catch (error) {
       console.error('Failed to get AI suggestion', error);
+      const root = error.response?.data;
+      if (root?.errors?.some(e => e.code === 'NO_BUILD')) {
+        setToast({ visible: true, message: t('ai_error_no_build'), status: 'error' });
+      } else {
+        setToast({ visible: true, message: t('ai_error_general'), status: 'error' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -96,6 +115,12 @@ const AIBuilder = ({ onApplySuggestion }) => {
       id="ai-builder"
       className="relative rounded-3xl border-2 border-indigo-200/60 bg-white/80 backdrop-blur-sm p-6 md:p-8 shadow-[0_0_40px_rgba(99,102,241,0.08)]"
     >
+      <ToastNotification
+        isVisible={toast.visible}
+        message={toast.message}
+        status={toast.status}
+        onClose={() => setToast({ ...toast, visible: false })}
+      />
       {/* Soft glow effect */}
       <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-50/50 to-transparent pointer-events-none" />
       <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-indigo-400/10 to-transparent blur-xl -z-10" />
@@ -106,10 +131,10 @@ const AIBuilder = ({ onApplySuggestion }) => {
             <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-800">AI PC Builder</h2>
+            <h2 className="text-xl font-semibold text-slate-800">{t('ai_title')}</h2>
             <p className="text-sm text-slate-500 flex items-center gap-1">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
-              Powered by AI — Gợi ý cấu hình theo nhu cầu
+              {t('ai_subtitle')}
             </p>
           </div>
         </div>
@@ -126,7 +151,15 @@ const AIBuilder = ({ onApplySuggestion }) => {
                   : 'bg-slate-100 text-slate-800 border border-slate-200/80'
                   }`}
               >
-                <p className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</p>
+                {msg.isWelcome ? (
+                  <p className="text-sm leading-relaxed whitespace-pre-line">
+                    {t('ai_welcome_text_1')}
+                    <br /><br />
+                    <span className="font-semibold text-amber-600">{t('ai_note')}:</span> {t('ai_welcome_text_2')}
+                  </p>
+                ) : (
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{msg.content}</p>
+                )}
               </div>
             </div>
           ))}
@@ -139,7 +172,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-slate-600">
-                  Ngân sách <span className="text-red-500">*</span>
+                  {t('ai_budget_label')} <span className="text-red-500">*</span>
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -153,7 +186,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
                       : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
                       }`}
                   >
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
@@ -162,7 +195,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-slate-600">
-                  Mục đích sử dụng <span className="text-red-500">*</span>
+                  {t('ai_usage_label')} <span className="text-red-500">*</span>
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -176,7 +209,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
                       : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
                       }`}
                   >
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
@@ -187,7 +220,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-medium text-slate-600">
-                Nhóm hiệu năng (không bắt buộc)
+                {t('ai_perf_label')}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -201,7 +234,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
                     : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-600'
                     }`}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </button>
               ))}
             </div>
@@ -211,7 +244,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-medium text-slate-600">
-                Sở thích thương hiệu (không bắt buộc)
+                {t('ai_brand_label')}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -225,7 +258,7 @@ const AIBuilder = ({ onApplySuggestion }) => {
                     : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:text-amber-600'
                     }`}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </button>
               ))}
             </div>
@@ -233,8 +266,8 @@ const AIBuilder = ({ onApplySuggestion }) => {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
             <p className="text-[11px] text-slate-400">
-              Vui lòng chọn đủ <span className="font-medium text-slate-500">Ngân sách</span> và{' '}
-              <span className="font-medium text-slate-500">Mục đích sử dụng</span> để AI gợi ý.
+              {t('ai_requirement_note')} <span className="font-medium text-slate-500">{t('ai_budget_label')}</span> {t('ai_and')}{' '}
+              <span className="font-medium text-slate-500">{t('ai_usage_label')}</span> {t('ai_to_suggest')}
             </p>
             <button
               type="button"
@@ -242,13 +275,13 @@ const AIBuilder = ({ onApplySuggestion }) => {
               disabled={!budget || !usage || isLoading}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-colors"
             >
-              {isLoading ? 'Đang gợi ý...' : 'Gợi ý cấu hình'}
+              {isLoading ? t('ai_suggesting') : t('ai_suggest_btn')}
             </button>
           </div>
         </div>
 
         <p className="text-xs text-slate-400 mt-3 text-center">
-          Gợi ý chỉ mang tính tham khảo. Vui lòng kiểm tra lại khả năng tương thích trước khi mua.
+          {t('ai_reference_note')}
         </p>
       </div>
     </section>

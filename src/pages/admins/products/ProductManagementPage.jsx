@@ -20,21 +20,15 @@ const getStatusBadge = (status) => {
   switch (status) {
     case 1:
       return {
-        label: 'Đang bán',
+        label: 'Còn hàng',
         className:
           'bg-emerald-50 text-emerald-700',
       };
     case 0:
       return {
-        label: 'Ngừng bán',
+        label: 'Hết hàng',
         className:
-          'bg-slate-100 text-slate-600',
-      };
-    case 2:
-      return {
-        label: 'Nháp',
-        className:
-          'bg-amber-50 text-amber-700',
+          'bg-rose-50 text-rose-700',
       };
     default:
       return {
@@ -182,9 +176,8 @@ const ProductManagementPage = () => {
             onChange={(e) => setLocalStatus(e.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            <option value="1">Đang bán</option>
-            <option value="0">Ngừng bán</option>
-            <option value="2">Nháp</option>
+            <option value="1">Còn hàng</option>
+            <option value="0">Hết hàng</option>
           </select>
           <div className="flex gap-2">
             <button

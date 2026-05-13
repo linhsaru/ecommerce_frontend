@@ -5,7 +5,6 @@ import PriceDisplay from './PriceDisplay';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useTranslation } from '../../context/LanguageContext';
-import { apiService } from '../../services';
 import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
 import { imageUtils } from '../../utils/image';
 
@@ -82,21 +81,18 @@ const ProductCard = ({ product, variant = 'default' }) => {
   const { t } = useTranslation();
 
   const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'success' });
+  const variantId = product.primaryVariantId ?? product.variantId ?? product.id;
+  const hasStockCount = product.stockCount !== null && typeof product.stockCount !== 'undefined';
+  const normalizedStockCount = hasStockCount ? Math.max(0, Number(product.stockCount) || 0) : null;
+  const isOutOfStock = hasStockCount
+    ? normalizedStockCount <= 0
+    : product.inStock === false;
 
   const handleBuyNow = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    let variantId = product.id;
-    try {
-      const { data: response } = await apiService.get(`/products/${product.id}/variants`);
-      const variants = response?.data ?? response ?? [];
-      if (variants && variants.length > 0) {
-        variantId = variants[0].id;
-      }
-    } catch (error) {
-      console.error("Failed to fetch variants for buy now", error);
-    }
+    if (isOutOfStock) return;
 
     navigate('/checkout', { state: { buyNowItem: { ...product, variantId, quantity: 1 } } });
   };
@@ -112,16 +108,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
     e.preventDefault();
     e.stopPropagation();
 
-    let variantId = product.id;
-    try {
-      const { data: response } = await apiService.get(`/products/${product.id}/variants`);
-      const variants = response?.data ?? response ?? [];
-      if (variants && variants.length > 0) {
-        variantId = variants[0].id;
-      }
-    } catch (error) {
-      console.error("Failed to fetch variants for add to cart", error);
-    }
+    if (isOutOfStock) return;
 
     addToCart({ ...product, variantId }, 1);
     setToastConfig({ isVisible: true, message: `${t('add_to_cart_success')}`, status: 'success' });
@@ -202,11 +189,20 @@ const ProductCard = ({ product, variant = 'default' }) => {
         {/* Gradient overlay on hover */}
         <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />
 
-        {/* Badge */}
-        {product.badge && (
-          <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-caption font-semibold shadow-soft-sm ${badgeColors[product.badgeColor] || badgeColors.primary}`}>
-            {product.badge}
-          </span>
+        {/* Badges */}
+        {(product.badge || isOutOfStock) && (
+          <div className="absolute top-3 left-3 flex flex-col items-start gap-1">
+            {product.badge && (
+              <span className={`px-2.5 py-1 rounded-full text-caption font-semibold shadow-soft-sm ${badgeColors[product.badgeColor] || badgeColors.primary}`}>
+                {product.badge}
+              </span>
+            )}
+            {isOutOfStock && (
+              <span className="px-2.5 py-1 rounded-full text-caption font-semibold shadow-soft-sm bg-danger-500 text-white">
+                {t('out_of_stock')}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Action buttons */}
@@ -230,13 +226,15 @@ const ProductCard = ({ product, variant = 'default' }) => {
         <div className={`absolute bottom-3 left-3 right-3 flex gap-2 transition-all duration-300 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
           <button
             onClick={handleBuyNow}
-            className="flex-1 flex items-center justify-center py-2.5 bg-primary-600 text-white rounded-xl text-body-sm font-semibold shadow-soft-lg hover:bg-primary-700 transition-all duration-200"
+            disabled={isOutOfStock}
+            className="flex-1 flex items-center justify-center py-2.5 bg-primary-600 text-white rounded-xl text-body-sm font-semibold shadow-soft-lg hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-primary-600 transition-all duration-200"
           >
             {t('buy_now')}
           </button>
           <button
             onClick={handleAddToCart}
-            className="p-2.5 flex items-center justify-center bg-white/95 backdrop-blur-sm text-neutral-800 rounded-xl shadow-soft-lg hover:bg-neutral-100 transition-all duration-200"
+            disabled={isOutOfStock}
+            className="p-2.5 flex items-center justify-center bg-white/95 backdrop-blur-sm text-neutral-800 rounded-xl shadow-soft-lg hover:bg-neutral-100 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white/95 transition-all duration-200"
             title="Add to Cart"
           >
             <HiOutlineShoppingBag className="w-5 h-5" />

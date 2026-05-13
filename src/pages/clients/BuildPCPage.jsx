@@ -19,16 +19,16 @@ import ToastNotification from '../../components/common/ToastNotification/ToastNo
 import { useTranslation } from '../../context/LanguageContext';
 
 const BUILD_COMPONENTS = [
-    { id: 'cpu', name: 'Vi xử lý (CPU)', icon: 'processor', keywords: ['cpu', 'vi xu ly', 'bo vi xu ly', 'processor'] },
-    { id: 'mainboard', name: 'Bo mạch chủ', icon: 'motherboard', keywords: ['mainboard', 'bo mach chu', 'motherboard'] },
-    { id: 'ram', name: 'RAM bộ nhớ trong', icon: 'memory', keywords: ['ram', 'bo nho trong', 'memory'] },
-    { id: 'vga', name: 'VGA - Card màn hình', icon: 'graphics', keywords: ['vga', 'gpu', 'card man hinh', 'graphics'] },
-    { id: 'ssd', name: 'Ổ cứng SSD', icon: 'ssd', keywords: ['ssd', 'o cung ssd', 'nvme'] },
-    { id: 'hdd', name: 'Ổ cứng HDD', icon: 'hdd', keywords: ['hdd', 'o cung hdd'] },
-    { id: 'psu', name: 'Nguồn máy tính', icon: 'power', keywords: ['psu', 'nguon', 'power supply', 'bo nguon'] },
-    { id: 'case', name: 'Vỏ Case', icon: 'case', keywords: ['case', 'vo may tinh', 'thung may'] },
-    { id: 'cooler', name: 'Tản nhiệt', icon: 'fan', keywords: ['tan nhiet', 'cooler', 'fan'] },
-    { id: 'monitor', name: 'Màn hình', icon: 'display', keywords: ['man hinh', 'monitor', 'display'] },
+    { id: 'cpu', nameKey: 'build_cpu', shortNameKey: 'build_short_cpu', icon: 'processor', keywords: ['cpu', 'vi xu ly', 'bo vi xu ly', 'processor'] },
+    { id: 'mainboard', nameKey: 'build_mainboard', shortNameKey: 'build_short_mainboard', icon: 'motherboard', keywords: ['mainboard', 'bo mach chu', 'motherboard'] },
+    { id: 'ram', nameKey: 'build_ram', shortNameKey: 'build_short_ram', icon: 'memory', keywords: ['ram', 'bo nho trong', 'memory'] },
+    { id: 'vga', nameKey: 'build_vga', shortNameKey: 'build_short_vga', icon: 'graphics', keywords: ['vga', 'gpu', 'card man hinh', 'graphics'] },
+    { id: 'ssd', nameKey: 'build_ssd', shortNameKey: 'build_short_ssd', icon: 'ssd', keywords: ['ssd', 'o cung ssd', 'nvme'] },
+    { id: 'hdd', nameKey: 'build_hdd', shortNameKey: 'build_short_hdd', icon: 'hdd', keywords: ['hdd', 'o cung hdd'] },
+    { id: 'psu', nameKey: 'build_psu', shortNameKey: 'build_short_psu', icon: 'power', keywords: ['psu', 'nguon', 'power supply', 'bo nguon'] },
+    { id: 'case', nameKey: 'build_case', shortNameKey: 'build_short_case', icon: 'case', keywords: ['case', 'vo may tinh', 'thung may'] },
+    { id: 'cooler', nameKey: 'build_cooler', shortNameKey: 'build_short_cooler', icon: 'fan', keywords: ['tan nhiet', 'cooler', 'fan'] },
+    { id: 'monitor', nameKey: 'build_monitor', shortNameKey: 'build_short_monitor', icon: 'display', keywords: ['man hinh', 'monitor', 'display'] },
 ];
 
 const normalizeText = (value) =>
@@ -53,7 +53,7 @@ const mapComponentsToRelatedCategories = (components, apiCategories) =>
         };
     });
 
-const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, formatCurrency }) => {
+const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, formatCurrency, t }) => {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [search, setSearch] = useState('');
@@ -108,7 +108,7 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
             <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-fade-in-up">
                 <div className="flex items-center justify-between p-5 border-b border-slate-100">
-                    <h3 className="text-xl font-bold text-slate-800">Chọn {category.name}</h3>
+                    <h3 className="text-xl font-bold text-slate-800">{t('build_modal_select')} {t(category.nameKey)}</h3>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
@@ -118,7 +118,7 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
                         <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Tìm kiếm linh kiện..."
+                            placeholder={t('build_modal_search_placeholder')}
                             value={search} onChange={e => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
                         />
@@ -128,15 +128,15 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
                     {isLoading ? (
                         <div className="py-20 flex flex-col items-center justify-center text-slate-500 space-y-4">
                             <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                            <p className="font-medium">Đang tải danh sách linh kiện...</p>
+                            <p className="font-medium">{t('build_modal_loading')}</p>
                         </div>
                     ) : filteredProducts.length === 0 ? (
                         <div className="py-20 text-center flex flex-col items-center">
                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                                 <Search className="w-6 h-6 text-slate-400" />
                             </div>
-                            <h4 className="text-lg font-semibold text-slate-800 mb-1">Không tìm thấy linh kiện</h4>
-                            <p className="text-slate-500">Không có sản phẩm trong danh mục liên quan hoặc thử từ khóa khác.</p>
+                            <h4 className="text-lg font-semibold text-slate-800 mb-1">{t('build_modal_empty_title')}</h4>
+                            <p className="text-slate-500">{t('build_modal_empty_desc')}</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -148,7 +148,7 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
                                     <div className="flex-1 min-w-0">
                                         <h4 className="font-semibold text-slate-800 text-sm leading-tight line-clamp-2 group-hover:text-blue-600 transition-colors" title={p.name}>{p.name}</h4>
                                         <div className="mt-1 flex items-center gap-2">
-                                            <span className="text-xs text-slate-500 max-w-[120px] truncate">Hãng: {p.brandName || 'Oem'}</span>
+                                            <span className="text-xs text-slate-500 max-w-[120px] truncate">{t('build_modal_brand')} {p.brandName || 'Oem'}</span>
                                             {p.status === 1 && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>}
                                         </div>
                                         <div className="flex items-center justify-between mt-2">
@@ -157,7 +157,7 @@ const PartSelectionModal = ({ isOpen, onClose, category, onSelectProduct, format
                                                 onClick={() => onSelectProduct(p)}
                                                 className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                                             >
-                                                Thêm
+                                                {t('build_modal_add')}
                                             </button>
                                         </div>
                                     </div>
@@ -223,7 +223,7 @@ const BuildPCPage = () => {
             variantId: item.variantId ?? null,
         }));
         if (items.length === 0) {
-            showToast('Vui lòng chọn ít nhất một linh kiện để tải cấu hình.', 'warning');
+            showToast(t('build_please_select_download'), 'warning');
             return;
         }
         setExportingExcel(true);
@@ -235,7 +235,7 @@ const BuildPCPage = () => {
                 discount: 0,
             });
         } catch (e) {
-            showToast(e?.message || 'Không tải được file Excel.', 'error');
+            showToast(e?.message || t('build_export_error'), 'error');
         } finally {
             setExportingExcel(false);
         }
@@ -310,7 +310,7 @@ const BuildPCPage = () => {
     const handleApplyAiSuggestion = (suggestion) => {
         const finalBuild = suggestion?.finalBuild;
         if (!finalBuild) {
-            showToast('AI chưa trả về cấu hình chi tiết để tự điền.', 'warning');
+            showToast(t('build_ai_no_detail'), 'warning');
             return;
         }
 
@@ -330,7 +330,7 @@ const BuildPCPage = () => {
         );
 
         setSelectedItems(nextSelectedItems);
-        showToast('Đã tự động điền linh kiện theo gợi ý AI.', 'success');
+        showToast(t('build_ai_filled'), 'success');
     };
 
     return (
@@ -341,9 +341,9 @@ const BuildPCPage = () => {
                     <div>
                         <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800">
                             <HiOutlineComputerDesktop className="text-blue-600 w-8 h-8" />
-                            Xây Dựng Cấu Hình PC
+                            {t('build_pc_title')}
                         </h1>
-                        <p className="text-slate-500 text-sm mt-1">Chọn linh kiện để tự build một bộ máy tính hoàn hảo</p>
+                        <p className="text-slate-500 text-sm mt-1">{t('build_pc_subtitle')}</p>
                     </div>
 
                     <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
@@ -354,7 +354,7 @@ const BuildPCPage = () => {
                             onClick={handleExportExcel}
                         >
                             <HiOutlineArrowDownTray className="w-4 h-4" />
-                            {exportingExcel ? 'Đang xuất file…' : 'Tải cấu hình'}
+                            {exportingExcel ? t('build_downloading') : t('build_download')}
                         </button>
                         <button
                             type="button"
@@ -366,21 +366,21 @@ const BuildPCPage = () => {
                                     variantId: item.variantId ?? null,
                                 }));
                                 if (items.length === 0) {
-                                    showToast('Vui lòng chọn ít nhất một linh kiện để in báo giá.', 'warning');
+                                    showToast(t('build_please_select_print'), 'warning');
                                     return;
                                 }
                                 navigate('/quotation', { state: { items } });
                             }}
                         >
                             <HiOutlinePrinter className="w-4 h-4" />
-                            In báo giá
+                            {t('build_print')}
                         </button>
                         <button
                             className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-red-600 rounded-lg font-medium text-sm transition-colors whitespace-nowrap"
                             onClick={() => setSelectedItems({})}
                         >
                             <HiOutlineTrash className="w-4 h-4" />
-                            Làm mới
+                            {t('build_refresh')}
                         </button>
                     </div>
                 </div>
@@ -406,7 +406,7 @@ const BuildPCPage = () => {
                                         <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
                                             {index + 1}
                                         </span>
-                                        <h2 className="font-semibold text-slate-700 text-base">{cat.name}</h2>
+                                        <h2 className="font-semibold text-slate-700 text-base">{t(cat.nameKey)}</h2>
                                     </div>
 
                                     {/* Part Content */}
@@ -423,7 +423,7 @@ const BuildPCPage = () => {
                                                             {selectedPart.name}
                                                         </h3>
                                                         <div className="mt-1 text-sm text-slate-500">
-                                                            Bảo hành: <span className="font-medium text-slate-700">{selectedPart.warranty}</span>
+                                                            {t('build_warranty')} <span className="font-medium text-slate-700">{selectedPart.warranty}</span>
                                                         </div>
                                                     </div>
 
@@ -455,7 +455,7 @@ const BuildPCPage = () => {
                                                             <button
                                                                 onClick={() => handleRemoveItem(cat.id)}
                                                                 className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                                                title="Xóa linh kiện"
+                                                                title={t('build_remove_item')}
                                                             >
                                                                 <HiOutlineTrash className="w-5 h-5" />
                                                             </button>
@@ -476,7 +476,7 @@ const BuildPCPage = () => {
                                                     className="flex justify-center items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl font-medium transition-colors w-full sm:w-auto group"
                                                 >
                                                     <HiOutlinePlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-                                                    Chọn {cat.name.split(' ')[0]}
+                                                    {t('build_select')} {t(cat.shortNameKey)}
                                                 </button>
                                             </div>
                                         )}
@@ -542,6 +542,7 @@ const BuildPCPage = () => {
                 onClose={() => setActiveCategory(null)}
                 onSelectProduct={handleSelectProduct}
                 formatCurrency={formatCurrency}
+                t={t}
             />
 
             <ToastNotification

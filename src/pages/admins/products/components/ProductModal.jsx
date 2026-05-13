@@ -239,9 +239,8 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
                     disabled={isViewMode}
                     className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 disabled:bg-slate-100 transition-all"
                   >
-                    <option value={1}>Đang bán</option>
-                    <option value={0}>Ngừng bán</option>
-                    <option value={2}>Nháp</option>
+                    <option value={1}>Còn hàng</option>
+                    <option value={0}>Hết hàng</option>
                   </select>
                 </div>
               </div>
