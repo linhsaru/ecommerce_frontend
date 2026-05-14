@@ -15,29 +15,11 @@ const formatCurrency = (value) => {
   });
 };
 
-const getStatusBadge = (status) => {
-  // Giả định backend dùng: 1 = active, 0 = inactive, 2 = draft
-  switch (status) {
-    case 1:
-      return {
-        label: 'Còn hàng',
-        className:
-          'bg-emerald-50 text-emerald-700',
-      };
-    case 0:
-      return {
-        label: 'Hết hàng',
-        className:
-          'bg-rose-50 text-rose-700',
-      };
-    default:
-      return {
-        label: 'Không rõ',
-        className:
-          'bg-slate-100 text-slate-600',
-      };
-  }
-};
+/** Chỉ hai trạng thái hiển thị: Còn hàng / Hết hàng (theo `inStock` từ API). */
+const getStockBadge = (product) =>
+  product?.inStock
+    ? { label: 'Còn hàng', className: 'bg-emerald-50 text-emerald-700' }
+    : { label: 'Hết hàng', className: 'bg-rose-50 text-rose-700' };
 
 const ProductManagementPage = () => {
   const {
@@ -49,7 +31,7 @@ const ProductManagementPage = () => {
     hasNext,
     hasPrev,
     search,
-    status,
+    inStock,
     isLoading,
     error,
     setFilters,
@@ -58,7 +40,7 @@ const ProductManagementPage = () => {
   } = useProductStore();
 
   const [localSearch, setLocalSearch] = useState(search || '');
-  const [localStatus, setLocalStatus] = useState(status ?? '');
+  const [localInStock, setLocalInStock] = useState(inStock ?? '');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -104,23 +86,23 @@ const ProductManagementPage = () => {
   const handleSearch = () => {
     setFilters({
       search: localSearch.trim(),
-      status: localStatus,
+      inStock: localInStock,
     });
     fetchProducts({
       page: 1,
       search: localSearch.trim(),
-      status: localStatus,
+      inStock: localInStock,
     }).catch(() => { });
   };
 
   const handleReset = () => {
     setLocalSearch('');
-    setLocalStatus('');
-    setFilters({ search: '', status: '' });
+    setLocalInStock('');
+    setFilters({ search: '', inStock: '' });
     fetchProducts({
       page: 1,
       search: '',
-      status: '',
+      inStock: '',
     }).catch(() => { });
   };
 
@@ -142,7 +124,7 @@ const ProductManagementPage = () => {
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Quản lý sản phẩm</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Tìm kiếm, lọc và quản lý danh sách sản phẩm trên hệ thống.
+            Tìm kiếm, lọc theo tồn kho và quản lý danh sách sản phẩm.
           </p>
         </div>
         <button
@@ -172,12 +154,12 @@ const ProductManagementPage = () => {
           </div>
           <select
             className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-            value={localStatus}
-            onChange={(e) => setLocalStatus(e.target.value)}
+            value={localInStock}
+            onChange={(e) => setLocalInStock(e.target.value)}
           >
-            <option value="">Tất cả trạng thái</option>
-            <option value="1">Còn hàng</option>
-            <option value="0">Hết hàng</option>
+            <option value="">Tất cả</option>
+            <option value="true">Còn hàng</option>
+            <option value="false">Hết hàng</option>
           </select>
           <div className="flex gap-2">
             <button
@@ -209,10 +191,10 @@ const ProductManagementPage = () => {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-left font-semibold text-slate-700">Sản phẩm</th>
+                <th className="px-6 py-4 text-left font-semibold text-slate-700 max-w-md">Sản phẩm</th>
                 <th className="px-6 py-4 text-left font-semibold text-slate-700">Slug</th>
                 <th className="px-6 py-4 text-right font-semibold text-slate-700">Giá</th>
-                <th className="px-6 py-4 text-center font-semibold text-slate-700">Trạng thái</th>
+                <th className="px-6 py-4 text-center font-semibold text-slate-700">Tình trạng</th>
                 <th className="px-6 py-4 text-right font-semibold text-slate-700">Hành động</th>
               </tr>
             </thead>
@@ -242,26 +224,29 @@ const ProductManagementPage = () => {
               {!isLoading &&
                 items &&
                 items.map((product) => {
-                  const badge = getStatusBadge(product.status);
+                  const badge = getStockBadge(product);
                   return (
                     <tr
                       key={product.id}
                       className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="px-6 py-4 align-top">
+                        <div className="flex items-center gap-3 min-w-0 max-w-md">
                           {product.thumbnailUrl && (
                             <img
                               src={product.thumbnailUrl}
                               alt={product.name}
-                              className="w-10 h-10 rounded object-cover border border-slate-200"
+                              className="w-10 h-10 shrink-0 rounded object-cover border border-slate-200"
                             />
                           )}
-                          <div>
-                            <p className="font-medium text-slate-800 line-clamp-1">
+                          <div className="min-w-0">
+                            <p
+                              className="font-medium text-slate-800 truncate"
+                              title={product.name}
+                            >
                               {product.name}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-400 truncate" title={product.id}>
                               ID: {product.id}
                             </p>
                           </div>
@@ -281,6 +266,9 @@ const ProductManagementPage = () => {
                         >
                           {badge.label}
                         </span>
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          SL: {product.stockCount ?? 0}
+                        </p>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">

@@ -55,16 +55,19 @@ const parseYYYYMM = (value) => {
   return { year: y, monthIndex: (m ?? 1) - 1 };
 };
 
-const percentChange = (current, prev) => {
+/** So sánh người dùng mới tháng này vs tháng trước — tránh chia cho 0 khi tháng trước = 0 */
+const compareNewUsersMoM = (current, prev) => {
   const c = Number(current ?? 0);
   const p = Number(prev ?? 0);
-  if (p === 0) return p === 0 && c === 0 ? 0 : null;
-  return ((c - p) / p) * 100;
+  if (p === 0 && c === 0) return { kind: 'flat' };
+  if (p === 0 && c > 0) return { kind: 'fromZero', added: c };
+  const pct = ((c - p) / p) * 100;
+  return { kind: 'percent', value: pct };
 };
 
 const formatPct = (value) => {
-  if (value === null) return '—';
-  const v = Number(value ?? 0);
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  const v = Number(value);
   const sign = v > 0 ? '+' : '';
   return `${sign}${v.toFixed(1)}%`;
 };
@@ -243,11 +246,11 @@ const DashboardPage = () => {
       const current = fetchedForCalc[idx + 1] ?? {};
       const prev = fetchedForCalc[idx] ?? {};
       const users = Number(current?.newUsers ?? 0);
-      const pct = percentChange(users, Number(prev?.newUsers ?? 0));
+      const mom = compareNewUsersMoM(users, Number(prev?.newUsers ?? 0));
       return {
         label: displayMonths[idx]?.label ?? `M${idx + 1}`,
         newUsers: users,
-        pct,
+        mom,
       };
     });
   }, [monthlyStatsFetched, displayMonthCount, displayMonths]);
@@ -454,7 +457,7 @@ const DashboardPage = () => {
           {/* New users */}
           <Card
             title="Danh sách người dùng mới"
-            subtitle="% tăng người dùng so với tháng trước"
+            subtitle="So với tháng trước: % thay đổi, hoặc “mốc đầu” khi tháng trước chưa có người mới"
             right={
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <Users className="w-4 h-4 text-indigo-600" />
@@ -468,28 +471,40 @@ const DashboardPage = () => {
                   <tr className="bg-slate-50/50">
                     <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tháng</th>
                     <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Người dùng mới</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">% so với tháng trước</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">So với tháng trước</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {newUsersRows.map((row, idx) => {
-                    const isPositive = row.pct !== null && Number(row.pct) >= 0;
+                    const { mom } = row;
                     return (
                       <tr key={`${row.label}-${idx}`} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 text-sm font-semibold text-slate-800">{row.label}</td>
                         <td className="px-4 py-3 text-sm font-medium text-slate-700">{row.newUsers}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-right">
-                          {row.pct === null ? (
+                          {mom.kind === 'flat' ? (
                             <span className="text-slate-400">—</span>
-                          ) : (
+                          ) : mom.kind === 'fromZero' ? (
                             <span
-                              className={`inline-flex items-center justify-end gap-1 ${isPositive ? 'text-emerald-600' : 'text-rose-600'
+                              className="inline-flex flex-col items-end gap-0.5 text-emerald-600"
+                              title="Tháng trước: 0 người mới — không thể tính % tăng. Đây là số người đăng ký mới trong tháng."
+                            >
+                              <span className="inline-flex items-center justify-end gap-1">
+                                <ArrowUpRight className="w-3 h-3 shrink-0" />
+                                <span>
+                                  +{mom.added} <span className="text-slate-500 font-medium text-xs">(mốc đầu)</span>
+                                </span>
+                              </span>
+                            </span>
+                          ) : mom.kind === 'percent' ? (
+                            <span
+                              className={`inline-flex items-center justify-end gap-1 ${mom.value >= 0 ? 'text-emerald-600' : 'text-rose-600'
                                 }`}
                             >
-                              {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                              {formatPct(row.pct)}
+                              {mom.value >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                              {formatPct(mom.value)}
                             </span>
-                          )}
+                          ) : null}
                         </td>
                       </tr>
                     );

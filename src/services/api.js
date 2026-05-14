@@ -72,17 +72,29 @@ api.interceptors.response.use(
 
       switch (status) {
         case 400:
-          throw new Error(data.message || 'Bad Request');
+          const err400 = new Error(data.message || 'Bad Request');
+          err400.response = error.response;
+          throw err400;
         case 403:
-          throw new Error('Forbidden - You do not have permission');
+          const err403 = new Error('Forbidden - You do not have permission');
+          err403.response = error.response;
+          throw err403;
         case 404:
-          throw new Error('Resource not found');
+          const err404 = new Error('Resource not found');
+          err404.response = error.response;
+          throw err404;
         case 422:
-          throw new Error(data.message || 'Validation failed');
+          const err422 = new Error(data.message || 'Validation failed');
+          err422.response = error.response;
+          throw err422;
         case 500:
-          throw new Error('Internal server error');
+          const err500 = new Error('Internal server error');
+          err500.response = error.response;
+          throw err500;
         default:
-          throw new Error(data.message || `Request failed with status ${status}`);
+          const errDefault = new Error(data.message || `Request failed with status ${status}`);
+          errDefault.response = error.response;
+          throw errDefault;
       }
     } else if (error.code === 'ECONNABORTED') {
       throw new Error('Request timeout - AI server is taking too long to respond');

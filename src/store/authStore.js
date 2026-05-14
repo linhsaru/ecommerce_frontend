@@ -59,16 +59,10 @@ const useAuthStore = create(
         set({ isLoading: true, error: null });
 
         try {
-          const { data } = await apiService.post('/auth/register', userData);
-
-          set({
-            user: data.user,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          });
-
-          return data;
+          await apiService.post('/auth/register', userData);
+          // Đăng ký không cấp JWT — không set isAuthenticated / user (tránh LoginPage redirect vòng)
+          set({ isLoading: false, error: null });
+          get().initializeAuth();
         } catch (error) {
           set({
             error: error.message,

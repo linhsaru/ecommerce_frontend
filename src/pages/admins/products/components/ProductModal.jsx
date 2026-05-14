@@ -17,12 +17,13 @@ const INITIAL_STATE = {
   discountedPrice: 0,
   status: 1,
   thumbnailUrl: '',
-  // Initial variant fields
+  primaryVariantId: '',
+  primaryVariantSku: '',
   sku: '',
   variantName: '',
-  price: 0,
-  compareAt: 0,
-  cost: 0
+  price: '',
+  compareAt: '',
+  cost: '',
 };
 
 const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
@@ -63,12 +64,21 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
     }
   }, [isOpen, mode, productSlug]);
 
+  const pickPrimaryVariant = (productData) => {
+    const variants = Array.isArray(productData?.variants) ? productData.variants : [];
+    const active = variants.filter((v) => Number(v.status) === 1);
+    const pool = active.length ? active : variants;
+    if (!pool.length) return null;
+    return [...pool].sort((a, b) => Number(a.price) - Number(b.price))[0];
+  };
+
   const fetchProductDetails = async (slug) => {
     setIsLoading(true);
     setError(null);
     try {
       const { data } = await apiService.get(`/products/slug/${slug}`);
       const productData = data.data || data;
+      const primary = pickPrimaryVariant(productData);
       setFormData({
         id: productData.id || '',
         name: productData.name || '',
@@ -80,11 +90,13 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
         discountedPrice: productData.discountedPrice || 0,
         status: productData.status ?? 1,
         thumbnailUrl: productData.thumbnailUrl || '',
+        primaryVariantId: primary?.id || '',
+        primaryVariantSku: primary?.sku || '',
         sku: '',
         variantName: '',
-        price: 0,
-        compareAt: 0,
-        cost: 0
+        price: primary != null ? String(primary.price ?? '') : '',
+        compareAt: primary != null && primary.compareAt != null ? String(primary.compareAt) : '',
+        cost: primary != null && primary.cost != null ? String(primary.cost) : '',
       });
     } catch (err) {
       setError(err.message || 'Không thể tải thông tin sản phẩm');
@@ -95,9 +107,16 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    if (type === 'number') {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value === '' ? '' : Number(value),
+      }));
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : value,
+      [name]: value,
     }));
   };
 
@@ -119,16 +138,27 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
       };
 
       if (mode === 'add') {
+        const price = Number(formData.price);
+        if (!Number.isFinite(price) || price < 0) throw new Error('Giá bán không hợp lệ.');
         payload.initialVariant = {
           sku: formData.sku || '',
           variantName: formData.variantName || 'Mặc định',
-          price: Number(formData.price || 0),
-          compareAt: Number(formData.compareAt || 0),
-          cost: Number(formData.cost || 0)
+          price,
+          compareAt: formData.compareAt === '' || formData.compareAt == null ? null : Number(formData.compareAt),
+          cost: formData.cost === '' || formData.cost == null ? null : Number(formData.cost),
         };
         await apiService.post('/products', payload);
       } else if (mode === 'edit') {
         if (!formData.id) throw new Error('Missing Product ID');
+        const price = Number(formData.price);
+        if (!Number.isFinite(price) || price < 0) throw new Error('Giá bán không hợp lệ.');
+        if (!formData.primaryVariantId) throw new Error('Không tìm thấy biến thể để cập nhật giá.');
+        payload.variantPricing = {
+          variantId: formData.primaryVariantId,
+          price,
+          compareAt: formData.compareAt === '' || formData.compareAt == null ? null : Number(formData.compareAt),
+          cost: formData.cost === '' || formData.cost == null ? null : Number(formData.cost),
+        };
         await apiService.put(`/products/${formData.id}`, payload);
       }
       onSuccess?.();
@@ -279,6 +309,7 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
                       type="number"
                       name="price"
                       min="0"
+                      step="1"
                       required
                       value={formData.price}
                       onChange={handleChange}
@@ -286,41 +317,101 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Giá niêm yết (VNĐ)</label>
+                    <label className="text-sm font-medium text-slate-700">Giá gốc / Niêm yết (VNĐ)</label>
                     <input
                       type="number"
                       name="compareAt"
                       min="0"
+                      step="1"
                       value={formData.compareAt}
                       onChange={handleChange}
                       className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                      placeholder="Để trống nếu không hiển thị giá gốc"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Giá vốn (VNĐ)</label>
+                    <label className="text-sm font-medium text-slate-700">Giá nhập (VNĐ)</label>
                     <input
                       type="number"
                       name="cost"
                       min="0"
+                      step="1"
                       value={formData.cost}
                       onChange={handleChange}
                       className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                      placeholder="Giá vốn / nhập kho"
                     />
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Giá gốc (VNĐ)</label>
-                    <div className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm opacity-60 cursor-not-allowed">
-                      {formatVnd(formData.originalPrice)}
-                    </div>
+                  <div className="col-span-1 md:col-span-2">
+                    <h3 className="text-sm font-semibold text-slate-800">Giá biến thể chính</h3>
+                    {formData.primaryVariantSku ? (
+                      <p className="text-xs text-slate-500 mt-1">SKU: {formData.primaryVariantSku}</p>
+                    ) : (
+                      <p className="text-xs text-amber-700 mt-1">Không có biến thể hoạt động — không thể cập nhật giá.</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Giá khuyến mãi (VNĐ)</label>
-                    <div className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm opacity-60 cursor-not-allowed">
-                      {formatVnd(formData.discountedPrice)}
-                    </div>
+                    <label className="text-sm font-medium text-slate-700">Giá gốc / Niêm yết (VNĐ)</label>
+                    {isViewMode ? (
+                      <div className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800">
+                        {formData.compareAt === '' || formData.compareAt == null ? '—' : formatVnd(Number(formData.compareAt))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        name="compareAt"
+                        min="0"
+                        step="1"
+                        value={formData.compareAt}
+                        onChange={handleChange}
+                        disabled={!formData.primaryVariantId}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 transition-all"
+                        placeholder="Để trống nếu không hiển thị giá gốc"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Giá bán (VNĐ) *</label>
+                    {isViewMode ? (
+                      <div className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 font-semibold">
+                        {formData.price === '' ? '—' : formatVnd(Number(formData.price))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        name="price"
+                        min="0"
+                        step="1"
+                        required
+                        value={formData.price}
+                        onChange={handleChange}
+                        disabled={!formData.primaryVariantId}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 transition-all font-medium"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-medium text-slate-700">Giá nhập (VNĐ)</label>
+                    {isViewMode ? (
+                      <div className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800">
+                        {formData.cost === '' || formData.cost == null ? '—' : formatVnd(Number(formData.cost))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        name="cost"
+                        min="0"
+                        step="1"
+                        value={formData.cost}
+                        onChange={handleChange}
+                        disabled={!formData.primaryVariantId}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 transition-all"
+                        placeholder="Giá vốn / nhập kho (tuỳ chọn)"
+                      />
+                    )}
                   </div>
                 </div>
               )}

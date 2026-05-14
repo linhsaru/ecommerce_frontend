@@ -88,7 +88,10 @@ const RegisterPage = () => {
 
     try {
       await register(payload);
-      navigate('/');
+      navigate('/login', {
+        replace: true,
+        state: { registerSuccess: 'Đăng ký thành công. Vui lòng đăng nhập.' },
+      });
     } catch (err) {
       console.error(err);
       showToast('Đăng ký thất bại: ' + (err?.message || err), 'error');

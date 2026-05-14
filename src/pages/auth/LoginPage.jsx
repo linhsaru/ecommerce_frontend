@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from '../../context/LanguageContext';
 import {
   HiOutlineEnvelope,
@@ -9,12 +8,14 @@ import {
   HiOutlineEyeSlash,
 } from 'react-icons/hi2';
 import { useAuthStore } from '../../store/authStore';
+import { tokenManager } from '../../services';
 import ToastNotification from '../../components/common/ToastNotification/ToastNotification';
 import logo from '../../assets/images/logo.png';
 
 const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, isLoading, isAuthenticated } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -22,9 +23,12 @@ const LoginPage = () => {
   const [loginError, setLoginError] = useState('');
   const [showToast, setShowToast] = useState(false);
 
-  // Nếu đã đăng nhập thì không cho vào trang login, tự redirect về home
+  const registerSuccess =
+    typeof location.state?.registerSuccess === 'string' ? location.state.registerSuccess : null;
+
+  // Chỉ redirect khi đã có JWT — tránh kẹt do isAuthenticated lệch với token 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && tokenManager.isAuthenticated()) {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
@@ -78,7 +82,11 @@ const LoginPage = () => {
             onClose={() => setShowToast(false)}
           />
 
-
+          {registerSuccess ? (
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-body-sm text-emerald-800">
+              {registerSuccess}
+            </div>
+          ) : null}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

@@ -5,26 +5,24 @@ import { useAuthStore } from '../../store/authStore';
 import { orderApi } from '../../services/orderApi';
 import { formatVnd } from '../../utils/price';
 import { useTranslation } from '../../context/LanguageContext';
-import {
-  HiOutlineChevronRight,
-} from 'react-icons/hi2';
+
 
 const ORDER_STATUS = {
-  0: { label: 'Chờ xác nhận', badge: 'accent' },   // pending
-  1: { label: 'Đã xác nhận', badge: 'primary' },   // confirmed
-  2: { label: 'Đang xử lý', badge: 'primary' },   // processing
-  3: { label: 'Đang giao', badge: 'primary' },       // shipping
-  4: { label: 'Hoàn thành', badge: 'success' },   // completed
-  5: { label: 'Đã hủy', badge: 'danger' },    // cancelled
-  6: { label: 'Đã hoàn tiền', badge: 'accent' },   // refunded
+  0: { label: 'Chờ xác nhận', badge: 'badge-warning' },   // pending
+  1: { label: 'Đã xác nhận', badge: 'badge-primary' },   // confirmed
+  2: { label: 'Đang xử lý', badge: 'badge-primary' },   // processing
+  3: { label: 'Đang giao', badge: 'badge-primary' },       // shipping
+  4: { label: 'Hoàn thành', badge: 'badge-success' },   // completed
+  5: { label: 'Đã hủy', badge: 'badge-danger' },    // cancelled
+  6: { label: 'Đã hoàn tiền', badge: 'badge-accent' },   // refunded
 };
 
 const PAYMENT_STATUS = {
-  0: { label: 'Chưa thanh toán', badge: 'accent' },  // unpaid
-  1: { label: 'Đã thanh toán', badge: 'success' },  // paid
-  2: { label: 'Thanh toán thất bại', badge: 'danger' },   // failed
-  3: { label: 'Đã hoàn tiền', badge: 'accent' },  // refunded
-  4: { label: 'Hoàn tiền một phần', badge: 'primary' },  // partially_refunded
+  0: { label: 'Chưa thanh toán', badge: 'badge-warning' },  // unpaid
+  1: { label: 'Đã thanh toán', badge: 'badge-success' },  // paid
+  2: { label: 'Thanh toán thất bại', badge: 'badge-danger' },   // failed
+  3: { label: 'Đã hoàn tiền', badge: 'badge-accent' },  // refunded
+  4: { label: 'Hoàn tiền một phần', badge: 'badge-primary' },  // partially_refunded
 };
 
 const toArray = (value) => {
@@ -38,8 +36,8 @@ const toArray = (value) => {
 const normalizeOrder = (order) => {
   const statusNum = Number(order?.status ?? 0);
   const paymentNum = Number(order?.paymentStatus ?? 0);
-  const statusMeta = ORDER_STATUS[statusNum] ?? { label: String(statusNum), badge: 'accent' };
-  const paymentMeta = PAYMENT_STATUS[paymentNum] ?? { label: String(paymentNum), badge: 'accent' };
+  const statusMeta = ORDER_STATUS[statusNum] ?? { label: String(statusNum), badge: 'badge-warning' };
+  const paymentMeta = PAYMENT_STATUS[paymentNum] ?? { label: String(paymentNum), badge: 'badge-warning' };
 
   const orderItems = toArray(order?.items).map((item) => ({
     id: item?.variantId || item?.productId || Math.random(),
@@ -152,8 +150,8 @@ const AccountPage = () => {
                         {formatVnd(order.total)}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className={`badge badge-${order.statusColor}`}>{order.status}</span>
-                        <span className={`badge badge-${order.paymentStatusColor}`}>{order.paymentStatus}</span>
+                        <span className={order.statusColor}>{order.status}</span>
+                        <span className={order.paymentStatusColor}>{order.paymentStatus}</span>
                       </div>
                     </div>
                   </div>
@@ -179,12 +177,7 @@ const AccountPage = () => {
                     ))}
                   </div>
 
-                  {/* Order footer */}
-                  <div className="flex items-center justify-end mt-4 pt-4 border-t border-neutral-100">
-                    <button className="btn-ghost btn-sm text-primary-600">
-                      {t('account_view_detail')} <HiOutlineChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
+
                 </div>
               ))}
             </div>

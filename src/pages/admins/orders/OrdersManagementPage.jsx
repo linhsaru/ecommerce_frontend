@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ShoppingCart, Search, RefreshCw } from 'lucide-react';
 import ToastNotification from '../../../components/common/ToastNotification/ToastNotification';
+import Pagination from '../../../components/data-displays/Pagination/Pagination';
 import { orderApi } from '../../../services/orderApi';
 import { formatVnd } from '../../../utils/price';
 
@@ -43,18 +44,29 @@ const OrdersManagementPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [updatingOrderIds, setUpdatingOrderIds] = useState([]);
   const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'info' });
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const skipStatusFilterEffect = useRef(true);
 
   const showToast = (message, status = 'info') => {
     setToastConfig({ isVisible: true, message, status });
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (p = page, search = searchTerm, status = statusFilter) => {
     setIsLoading(true);
     setError('');
     try {
-      const response = await orderApi.getOrders();
-      const list = response?.data || [];
-      setOrders(Array.isArray(list) ? list : []);
+      const envelope = await orderApi.getOrders({
+        page: p,
+        pageSize,
+        search: search?.trim() || undefined,
+        status: status === '' || status == null ? undefined : Number(status),
+      });
+      const paged = envelope?.data;
+      const list = Array.isArray(paged?.items) ? paged.items : [];
+      setOrders(list);
+      setTotalItems(Number(paged?.totalItems ?? 0));
     } catch (fetchError) {
       setError(fetchError?.response?.data?.message || 'Không thể tải danh sách đơn hàng.');
     } finally {
@@ -63,22 +75,34 @@ const OrdersManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchOrders().catch(() => { });
-  }, []);
+    fetchOrders(page, searchTerm, statusFilter).catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
-  const filteredOrders = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-    return orders.filter((order) => {
-      const matchesKeyword =
-        !keyword ||
-        order.orderNo?.toLowerCase().includes(keyword) ||
-        order.shipRecipient?.toLowerCase().includes(keyword) ||
-        order.shipPhone?.toLowerCase().includes(keyword);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (page !== 1) {
+        setPage(1);
+      } else {
+        fetchOrders(1, searchTerm, statusFilter).catch(() => { });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
-      const matchesStatus = statusFilter === '' || Number(order.status) === Number(statusFilter);
-      return matchesKeyword && matchesStatus;
-    });
-  }, [orders, searchTerm, statusFilter]);
+  useEffect(() => {
+    if (skipStatusFilterEffect.current) {
+      skipStatusFilterEffect.current = false;
+      return;
+    }
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      fetchOrders(1, searchTerm, statusFilter).catch(() => { });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   const handleUpdateOrderStatus = async (orderId, nextPatch) => {
     const currentOrder = orders.find((item) => item.orderId === orderId);
@@ -115,7 +139,7 @@ const OrdersManagementPage = () => {
           <p className="text-sm text-slate-500 mt-1">Quản lý, theo dõi và xử lý các đơn đặt hàng từ khách hàng.</p>
         </div>
         <button
-          onClick={() => fetchOrders().catch(() => { })}
+          onClick={() => fetchOrders(page, searchTerm, statusFilter).catch(() => { })}
           className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm"
         >
           <RefreshCw className="w-4 h-4" />
@@ -160,7 +184,7 @@ const OrdersManagementPage = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center text-slate-500 text-sm">Đang tải danh sách đơn hàng...</div>
-        ) : filteredOrders.length === 0 ? (
+        ) : orders.length === 0 ? (
           <div className="p-12 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
               <ShoppingCart className="w-8 h-8 text-blue-600" />
@@ -185,7 +209,7 @@ const OrdersManagementPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredOrders.map((order) => {
+                {orders.map((order) => {
                   const isUpdating = updatingOrderIds.includes(order.orderId);
 
                   return (
@@ -272,6 +296,22 @@ const OrdersManagementPage = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!isLoading && totalItems > 0 && (
+          <div className="px-6 py-4 flex items-center justify-between border-t border-slate-100 bg-slate-50/50">
+            <span className="text-sm text-slate-500">
+              Hiển thị tổng số {totalItems} bản ghi
+            </span>
+            <div className="flex-1 flex justify-end">
+              <Pagination
+                page={page}
+                count={totalItems}
+                pageSize={pageSize}
+                onPageChange={(p) => setPage(p)}
+              />
+            </div>
           </div>
         )}
       </div>

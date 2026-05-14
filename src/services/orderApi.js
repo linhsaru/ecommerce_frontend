@@ -31,10 +31,10 @@ export const orderApi = {
     }
   },
 
-  // Admin: fetch all orders
-  getOrders: async () => {
+  // Admin: paged list (query: page, pageSize, search, status)
+  getOrders: async (params = {}) => {
     try {
-      const response = await apiService.get('/orders');
+      const response = await apiService.get('/orders', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching orders:', error);
