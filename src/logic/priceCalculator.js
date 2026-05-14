@@ -12,14 +12,19 @@
  */
 export function calculateDiscountAmount(coupon, subtotalAmount) {
   if (!coupon) return 0;
+  
+  const dType = coupon.discountType ?? coupon.discount_type;
+  const dValue = coupon.discountValue ?? coupon.discount_value;
+  const maxD = coupon.maxDiscount ?? coupon.max_discount;
+
   let discount = 0;
-  if (coupon.discount_type === 'percent') {
-    discount = (subtotalAmount * Number(coupon.discount_value)) / 100;
-    if (coupon.max_discount != null && discount > Number(coupon.max_discount)) {
-      discount = Number(coupon.max_discount);
+  if (dType === 'percent') {
+    discount = (subtotalAmount * Number(dValue)) / 100;
+    if (maxD != null && discount > Number(maxD)) {
+      discount = Number(maxD);
     }
   } else {
-    discount = Number(coupon.discount_value);
+    discount = Number(dValue);
   }
   return Math.min(discount, subtotalAmount);
 }

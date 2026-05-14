@@ -76,9 +76,8 @@ const CartPage = () => {
   };
 
   const shipping = total >= 199 ? 0 : 9.99;
-  const tax = total * 0.08;
   const discount = promoApplied ? total * 0.1 : 0;
-  const grandTotal = total + shipping + tax - discount;
+  const grandTotal = total + shipping - discount;
 
   const [suggestedProducts, setSuggestedProducts] = useState([]);
   const [isSuggestedLoading, setIsSuggestedLoading] = useState(false);
@@ -297,7 +296,11 @@ const CartPage = () => {
                   <button
                     onClick={handleApplyPromo}
                     disabled={!promoCode || promoApplied}
-                    className="btn-secondary btn-sm whitespace-nowrap disabled:opacity-50"
+                    className={`px-5 py-2 rounded-xl font-semibold text-sm transition-all duration-300 whitespace-nowrap active:scale-95 border ${
+                      promoApplied
+                        ? 'bg-green-500 border-green-500 text-white shadow-[0_0_12px_rgba(34,197,94,0.4)] cursor-default'
+                        : 'bg-neutral-900 border-neutral-900 text-white hover:bg-neutral-800 hover:shadow-lg hover:shadow-neutral-900/20 disabled:bg-neutral-100 disabled:border-neutral-200 disabled:text-neutral-400 disabled:active:scale-100 disabled:cursor-not-allowed disabled:shadow-none'
+                    }`}
                   >
                     {promoApplied ? t('cart_applied') : t('cart_apply')}
                   </button>
@@ -327,10 +330,7 @@ const CartPage = () => {
                     {shipping === 0 ? t('free') : formatVnd(shipping)}
                   </span>
                 </div>
-                <div className="flex justify-between text-body-sm">
-                  <span className="text-neutral-500">{t('cart_tax')}</span>
-                  <span className="text-neutral-800 font-medium">{formatVnd(tax)}</span>
-                </div>
+
                 {shipping > 0 && (
                   <p className="text-caption text-primary-600 bg-primary-50 rounded-lg px-3 py-2">
                     {t('cart_free_shipping_hint').replace('{amount}', formatVnd(199 - total))}

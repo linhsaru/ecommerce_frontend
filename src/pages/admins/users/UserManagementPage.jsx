@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Users, Download } from 'lucide-react';
+import { Search, Users, RefreshCw } from 'lucide-react';
 import { apiService } from '../../../services';
 
 const getStatusLabel = (status) => {
@@ -63,7 +63,7 @@ const UserManagementPage = () => {
           onClick={() => fetchUsers().catch(() => {})}
           className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm"
         >
-          <Download className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" />
           <span>Làm mới dữ liệu</span>
         </button>
       </div>

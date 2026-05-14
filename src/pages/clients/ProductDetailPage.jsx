@@ -13,10 +13,9 @@ import {
   HiStar,
   HiCheckCircle,
 } from 'react-icons/hi2';
-import { StarRating, PriceDisplay, QuantitySelector, ProductCard } from '../../components/shop';
+import { PriceDisplay, QuantitySelector, ProductCard } from '../../components/shop';
 import { useCartStore } from '../../store/cartStore';
 import { useWishlistStore } from '../../store/wishlistStore';
-import { reviews as allReviews } from '../../data/mockData';
 import { apiService } from '../../services';
 import { formatVnd } from '../../utils/price';
 import { useTranslation } from '../../context/LanguageContext';
@@ -35,6 +34,10 @@ const mapApiProductToViewModel = (p) => {
   }
 
   const primaryCategory = p.categories && p.categories.length > 0 ? p.categories[0] : null;
+  const variants = normalizeVariantsPayload(p?.variants ?? p?.Variants);
+  const totalStockCount = variants.length > 0
+    ? variants.reduce((sum, variant) => sum + getVariantStockCount(variant), 0)
+    : Math.max(0, Number(p?.stockCount ?? 0));
 
   return {
     id: p.id,
@@ -48,8 +51,8 @@ const mapApiProductToViewModel = (p) => {
     brand: p.brandName || '',
     categorySlug: primaryCategory ? primaryCategory.slug : '',
     category: primaryCategory ? primaryCategory.name : '',
-    inStock: p.status === 1,
-    stockCount: 10,
+    inStock: typeof p?.inStock === 'boolean' ? p.inStock : p.status === 1 && totalStockCount > 0,
+    stockCount: totalStockCount,
     rating: 4.8,
     reviewCount: 0,
     badge: p.discountPercent ? `-${Math.round(p.discountPercent)}%` : null,
@@ -60,6 +63,7 @@ const mapApiProductToViewModel = (p) => {
     images: images.length ? images : [],
     thumbnailUrl: p.thumbnailUrl ?? null,
     usage_tags: [],
+    variants,
   };
 };
 
@@ -67,6 +71,16 @@ const normalizeVariantsPayload = (raw) => {
   if (Array.isArray(raw)) return raw;
   if (raw && Array.isArray(raw.data)) return raw.data;
   return [];
+};
+
+const getVariantStockCount = (variant) => {
+  const value =
+    variant?.stockCount ??
+    variant?.stockQuantity ??
+    variant?.quantity ??
+    variant?.availableStock ??
+    0;
+  return Math.max(0, Number(value) || 0);
 };
 
 const SPEC_CHIP_SIZE_MAX_LEN = 24;
@@ -119,6 +133,33 @@ const extractColorSizeChips = (variantsData) => {
   return { colors: Array.from(colors), sizes: Array.from(sizes) };
 };
 
+const findVariantBySelection = (variants = [], selectedColor = '', selectedSize = '') => {
+  if (!Array.isArray(variants) || variants.length === 0) return null;
+
+  return variants.find((v) => {
+    let match = true;
+    if (selectedColor) {
+      const hasColor = v.specifications?.some((s) => {
+        const n = (s.name || '').toLowerCase().trim();
+        return (n === 'color' || n === 'màu sắc' || n === 'màu') && s.value === selectedColor;
+      });
+      if (!hasColor) match = false;
+    }
+    if (selectedSize) {
+      const hasSize = v.specifications?.some((s) => {
+        const n = (s.name || '').toLowerCase().trim();
+        return (
+          (n === 'size' || n === 'kích cỡ' || n === 'cỡ') &&
+          !isDimensionSpecName(n) &&
+          s.value === selectedSize
+        );
+      });
+      if (!hasSize) match = false;
+    }
+    return match;
+  }) || null;
+};
+
 const ProductDetailPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -147,52 +188,48 @@ const ProductDetailPage = () => {
         } else {
           const mappedProduct = mapApiProductToViewModel(found);
 
-          try {
-            const { data: varResponse } = await apiService.get(`/products/${found.id}/variants`);
-            const variantsData = normalizeVariantsPayload(varResponse?.data ?? varResponse);
+          const variantsData = normalizeVariantsPayload(found?.variants ?? found?.Variants);
+          const primaryVariant =
+            variantsData.find(
+              (v) => (v.variantName || '').toLowerCase().trim() === 'default'
+            ) || variantsData[0];
 
-            const primaryVariant =
-              variantsData.find(
-                (v) => (v.variantName || '').toLowerCase().trim() === 'default'
-              ) || variantsData[0];
-
-            if (primaryVariant && typeof primaryVariant.price === 'number') {
-              const sale = primaryVariant.price;
-              const compare = primaryVariant.compareAt;
-              if (typeof compare === 'number' && compare > sale) {
-                mappedProduct.price = compare;
-                mappedProduct.discountPrice = sale;
-              } else {
-                mappedProduct.price = sale;
-                mappedProduct.discountPrice = null;
-              }
-              if (
-                mappedProduct.discountPrice != null &&
-                mappedProduct.price > mappedProduct.discountPrice
-              ) {
-                const pct = Math.round(
-                  ((mappedProduct.price - mappedProduct.discountPrice) / mappedProduct.price) * 100
-                );
-                mappedProduct.badge = `-${pct}%`;
-                mappedProduct.badgeColor = 'danger';
-              } else {
-                mappedProduct.badge = null;
-              }
+          if (primaryVariant && typeof primaryVariant.price === 'number') {
+            const sale = primaryVariant.price;
+            const compare = primaryVariant.compareAt;
+            if (typeof compare === 'number' && compare > sale) {
+              mappedProduct.price = compare;
+              mappedProduct.discountPrice = sale;
+            } else {
+              mappedProduct.price = sale;
+              mappedProduct.discountPrice = null;
             }
-
-            if (primaryVariant) {
-              const { rows, specifications } = buildSpecsFromVariant(primaryVariant);
-              mappedProduct.specificationRows = rows;
-              mappedProduct.specifications = specifications;
+            if (
+              mappedProduct.discountPrice != null &&
+              mappedProduct.price > mappedProduct.discountPrice
+            ) {
+              const pct = Math.round(
+                ((mappedProduct.price - mappedProduct.discountPrice) / mappedProduct.price) * 100
+              );
+              mappedProduct.badge = `-${pct}%`;
+              mappedProduct.badgeColor = 'danger';
+            } else {
+              mappedProduct.badge = null;
             }
-
-            const { colors, sizes } = extractColorSizeChips(variantsData);
-            mappedProduct.colors = colors;
-            mappedProduct.sizes = sizes;
-            mappedProduct.variants = variantsData;
-          } catch (varErr) {
-            console.error('Failed to fetch variants:', varErr);
           }
+
+          if (primaryVariant) {
+            const { rows, specifications } = buildSpecsFromVariant(primaryVariant);
+            mappedProduct.specificationRows = rows;
+            mappedProduct.specifications = specifications;
+          }
+
+          const { colors, sizes } = extractColorSizeChips(variantsData);
+          mappedProduct.colors = colors;
+          mappedProduct.sizes = sizes;
+          mappedProduct.variants = variantsData;
+          mappedProduct.stockCount = variantsData.reduce((sum, v) => sum + getVariantStockCount(v), 0);
+          mappedProduct.inStock = mappedProduct.stockCount > 0;
 
           setProduct(mappedProduct);
         }
@@ -232,10 +269,7 @@ const ProductDetailPage = () => {
     }
   }, [slug]);
 
-  const reviews = useMemo(
-    () => (product ? allReviews.filter((r) => r.productId === product.id) : []),
-    [product]
-  );
+
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
@@ -260,65 +294,37 @@ const ProductDetailPage = () => {
   const toggleWishlist = useWishlistStore((state) => state.toggleItem);
   const isInWishlist = useWishlistStore((state) => (product ? state.isInWishlist(product.id) : false));
 
-  const getSelectedVariantId = () => {
-    let selectedVariantId = product.id;
-    if (product.variants && product.variants.length > 0) {
-      const selectedVariant = product.variants.find(v => {
-        let match = true;
-        if (selectedColor) {
-          const hasColor = v.specifications?.some((s) => {
-            const n = (s.name || '').toLowerCase().trim();
-            return (
-              (n === 'color' || n === 'màu sắc' || n === 'màu') &&
-              s.value === selectedColor
-            );
-          });
-          if (!hasColor) match = false;
-        }
-        if (selectedSize) {
-          const hasSize = v.specifications?.some((s) => {
-            const n = (s.name || '').toLowerCase().trim();
-            return (
-              (n === 'size' || n === 'kích cỡ' || n === 'cỡ') &&
-              !isDimensionSpecName(n) &&
-              s.value === selectedSize
-            );
-          });
-          if (!hasSize) match = false;
-        }
-        return match;
-      });
-      if (selectedVariant) {
-        selectedVariantId = selectedVariant.id;
-      }
+  const selectedVariant = useMemo(
+    () => findVariantBySelection(product?.variants, selectedColor, selectedSize),
+    [product?.variants, selectedColor, selectedSize]
+  );
+  const selectedVariantId = selectedVariant?.id ?? product?.id;
+  const selectedStockCount = getVariantStockCount(selectedVariant);
+  const isSelectedVariantOutOfStock = selectedStockCount <= 0;
+  const availableQuantity = Math.max(1, selectedStockCount);
+
+  useEffect(() => {
+    if (quantity > availableQuantity) {
+      setQuantity(availableQuantity);
     }
-    return selectedVariantId;
-  };
+  }, [quantity, availableQuantity]);
 
   const handleAddToCart = () => {
-    if (!product) return;
-    const variantId = getSelectedVariantId();
-    addToCart({ ...product, selectedColor, selectedSize, variantId }, quantity);
+    if (!product || isSelectedVariantOutOfStock) return;
+    addToCart({ ...product, selectedColor, selectedSize, variantId: selectedVariantId }, quantity);
     setToastConfig({ isVisible: true, message: `${t('add_to_cart_success')}`, status: 'success' });
   };
 
   const handleBuyNow = () => {
-    if (!product) return;
-    const variantId = getSelectedVariantId();
-    navigate('/checkout', { state: { buyNowItem: { ...product, selectedColor, selectedSize, variantId, quantity } } });
+    if (!product || isSelectedVariantOutOfStock) return;
+    navigate('/checkout', { state: { buyNowItem: { ...product, selectedColor, selectedSize, variantId: selectedVariantId, quantity } } });
   };
 
-  // Rating distribution
-  const ratingDistribution = useMemo(() => {
-    const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviews.forEach((r) => { dist[r.rating]++; });
-    return dist;
-  }, [reviews]);
+
 
   const tabs = [
     { id: 'description', label: t('description') },
     { id: 'specifications', label: t('specifications') },
-    { id: 'reviews', label: `${t('reviews')} (${reviews.length})` },
   ];
 
   if (isLoading || !product) {
@@ -407,11 +413,10 @@ const ProductDetailPage = () => {
               <p className="text-body-sm text-primary-600 font-medium mb-1">{product.brand}</p>
               <h1 className="text-display-sm md:text-display-md text-neutral-900 mb-3">{product.name}</h1>
               <div className="flex items-center gap-4">
-                <StarRating rating={product.rating} size="md" showValue reviewCount={product.reviewCount} />
-                {product.inStock ? (
-                  <span className="badge-success">In Stock</span>
+                {!isSelectedVariantOutOfStock ? (
+                  <span className="badge-success">Còn hàng ({selectedStockCount})</span>
                 ) : (
-                  <span className="badge-danger">Out of Stock</span>
+                  <span className="badge-danger">Hết hàng</span>
                 )}
               </div>
             </div>
@@ -421,7 +426,7 @@ const ProductDetailPage = () => {
               <PriceDisplay price={product.price} discountPrice={product.discountPrice} size="lg" />
               {product.discountPrice && (
                 <p className="text-body-sm text-success-600 mt-1 font-medium">
-                  You save {formatVnd(product.price - product.discountPrice)}
+                  {t('you_save')} {formatVnd(product.price - product.discountPrice)}
                 </p>
               )}
             </div>
@@ -490,12 +495,12 @@ const ProductDetailPage = () => {
             {/* Quantity & Add to Cart */}
             <div className="flex flex-col gap-4 pt-2 sm:flex-row sm:flex-wrap sm:items-stretch lg:flex-nowrap lg:items-center">
               <div className="shrink-0 w-full sm:w-auto">
-                <QuantitySelector quantity={quantity} onChange={setQuantity} max={product.stockCount} />
+                <QuantitySelector quantity={quantity} onChange={setQuantity} max={availableQuantity} />
               </div>
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={!product.inStock}
+                disabled={isSelectedVariantOutOfStock}
                 className="btn-lg btn-primary flex-1 group w-full sm:min-w-[140px] whitespace-nowrap"
               >
                 {t('buy_now')}
@@ -503,7 +508,7 @@ const ProductDetailPage = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={!product.inStock}
+                disabled={isSelectedVariantOutOfStock}
                 className="btn-lg btn-outline px-6 bg-white rounded-xl border border-primary-600 text-primary-600 font-semibold shadow-soft-sm hover:bg-primary-50 transition-all duration-200 flex items-center justify-center whitespace-nowrap sm:min-w-0"
                 title="Add to Cart"
               >
@@ -632,97 +637,7 @@ const ProductDetailPage = () => {
               </div>
             )}
 
-            {activeTab === 'reviews' && (
-              <div>
-                {/* Review Summary */}
-                <div className="card p-6 md:p-8 mb-8">
-                  <div className="grid md:grid-cols-3 gap-8">
-                    {/* Overall Rating */}
-                    <div className="text-center md:border-r border-neutral-100">
-                      <div className="text-display-xl text-neutral-900 mb-1">{product.rating}</div>
-                      <StarRating rating={product.rating} size="lg" />
-                      <p className="text-body-sm text-neutral-500 mt-2">
-                        Based on {product.reviewCount.toLocaleString()} reviews
-                      </p>
-                    </div>
 
-                    {/* Rating Distribution */}
-                    <div className="md:col-span-2 space-y-2">
-                      {[5, 4, 3, 2, 1].map((star) => {
-                        const count = ratingDistribution[star];
-                        const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                        return (
-                          <div key={star} className="flex items-center gap-3">
-                            <span className="text-body-sm text-neutral-600 w-8">{star} ★</span>
-                            <div className="flex-1 h-2.5 bg-neutral-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                            <span className="text-body-sm text-neutral-500 w-8">{count}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Review List */}
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="card p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={review.userAvatar}
-                            alt={review.userName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-body-sm font-semibold text-neutral-800">{review.userName}</p>
-                              {review.verified && (
-                                <span className="badge-success text-[10px]">
-                                  <HiCheckCircle className="w-3 h-3" /> Verified
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-caption text-neutral-500">{review.date}</p>
-                          </div>
-                        </div>
-                        <StarRating rating={review.rating} size="sm" />
-                      </div>
-
-                      <h4 className="text-body-sm font-semibold text-neutral-800 mb-2">{review.title}</h4>
-                      <p className="text-body-sm text-neutral-600 leading-relaxed mb-3">{review.comment}</p>
-
-                      {review.images.length > 0 && (
-                        <div className="flex gap-2 mb-3">
-                          {review.images.map((img, i) => (
-                            <div key={i} className="w-16 h-16 rounded-lg overflow-hidden">
-                              <img src={img} alt="" className="w-full h-full object-cover" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <button className="flex items-center gap-1.5 text-caption text-neutral-500 hover:text-primary-600 transition-colors">
-                        <HiOutlineHandThumbUp className="w-3.5 h-3.5" />
-                        Helpful ({review.helpful})
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Write Review Button */}
-                <div className="mt-8 text-center">
-                  <button className="btn-secondary">
-                    Write a Review
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineHome, HiOutlineDocumentText } from 'react-icons/hi2';
-import { paymentApi } from '../../api/paymentApi';
+import { paymentApi } from '../../services/paymentApi';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../context/LanguageContext';

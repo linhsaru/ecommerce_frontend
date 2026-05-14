@@ -11,7 +11,7 @@ export const useProductStore = create((set, get) => ({
   hasNext: false,
   hasPrev: false,
   search: '',
-  status: '',
+  inStock: '',
   isLoading: false,
   error: null,
 
@@ -58,10 +58,10 @@ export const useProductStore = create((set, get) => ({
   },
 
   // Actions
-  setFilters: ({ search, status }) => {
+  setFilters: ({ search, inStock }) => {
     set((state) => ({
       search: search ?? state.search,
-      status: status ?? state.status,
+      inStock: inStock ?? state.inStock,
       page: 1, // reset về trang 1 khi đổi filter
     }));
   },
@@ -72,29 +72,27 @@ export const useProductStore = create((set, get) => ({
   },
 
   fetchProducts: async (options = {}) => {
-    const { page, pageSize, search, status } = {
+    const { page, pageSize, search, inStock } = {
       page: get().page,
       pageSize: get().pageSize,
       search: get().search,
-      status: get().status,
+      inStock: get().inStock,
       ...options,
     };
 
     set({ isLoading: true, error: null });
 
     try {
-      const numericStatus =
-        status === '' || status === null || typeof status === 'undefined'
-          ? undefined
-          : Number(status);
+      const params = {
+        page,
+        pageSize,
+        search: search || undefined,
+      };
+      if (inStock === 'true') params.inStock = true;
+      if (inStock === 'false') params.inStock = false;
 
       const { data: response } = await apiService.get('/products', {
-        params: {
-          page,
-          pageSize,
-          search: search || undefined,
-          status: Number.isNaN(numericStatus) ? undefined : numericStatus,
-        },
+        params,
       });
 
       const normalized = get()._normalizeResponse(response);

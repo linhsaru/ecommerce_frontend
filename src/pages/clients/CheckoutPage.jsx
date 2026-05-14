@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   HiOutlineCheckCircle,
@@ -10,10 +10,11 @@ import {
 } from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import { coupons, userAddresses } from '../../data/mockData';
+import { coupons as mockCoupons, userAddresses } from '../../data/mockData';
 import CouponList from '../../components/CouponList';
-import { paymentApi } from '../../api/paymentApi';
-import { orderApi } from '../../api/orderApi';
+import { apiService } from '../../services';
+import { paymentApi } from '../../services/paymentApi';
+import { orderApi } from '../../services/orderApi';
 import { calculateOrderTotals } from '../../logic/priceCalculator';
 import { useTranslation } from '../../context/LanguageContext';
 import { formatVnd } from '../../utils/price';
@@ -23,18 +24,16 @@ import ToastNotification from '../../components/common/ToastNotification/ToastNo
 const PAYMENT_METHODS = [
   { id: 'cod', nameKey: 'cash_on_delivery', descKey: 'pay_when_receive' },
   { id: 'vnpay', nameKey: 'vnpay', descKey: 'vnpay_desc' },
-  { id: 'momo', nameKey: 'momo', descKey: 'momo_desc' },
   { id: 'bank_transfer', nameKey: 'bank_transfer', descKey: 'bank_transfer_desc' },
-  { id: 'stripe', nameKey: 'credit_card', descKey: 'credit_card_desc' },
 ];
 
 const FREE_SHIPPING_THRESHOLD = 199;
 const SHIPPING_FEE = 9.99;
 const PAYMENT_METHOD_TO_ENUM = {
   cod: 0,
-  vnpay: 1,
-  momo: 2,
-  bank_transfer: 3,
+  bank_transfer: 1,
+  vnpay: 2,
+  momo: 3,
   stripe: 4,
 };
 
@@ -54,6 +53,7 @@ const CheckoutPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNo, setOrderNo] = useState('');
+  const orderPlacedRef = useRef(false);
 
   const defaultAddress = isAuthenticated && user
     ? (userAddresses.find((a) => a.user_id === user.id && a.is_default) || userAddresses.find((a) => a.user_id === user.id))
@@ -61,6 +61,7 @@ const CheckoutPage = () => {
 
   const [shippingData, setShippingData] = useState({
     ship_recipient: '',
+    ship_email: '',
     ship_phone: '',
     ship_line1: '',
     ship_line2: '',
@@ -73,17 +74,99 @@ const CheckoutPage = () => {
 
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [activeCoupons, setActiveCoupons] = useState(mockCoupons || []);
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [toastConfig, setToastConfig] = useState({ isVisible: false, message: '', status: 'info' });
+  const [vietQrPayment, setVietQrPayment] = useState(null);
+  const [isCheckingVietQr, setIsCheckingVietQr] = useState(false);
+  const [nowTs, setNowTs] = useState(Date.now());
+  const toastTimeoutRef = useRef(null);
 
   const showToast = (message, status = 'info') => {
     setToastConfig({ isVisible: true, message, status });
+
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToastConfig((prev) => ({ ...prev, isVisible: false }));
+      toastTimeoutRef.current = null;
+    }, 3000);
   };
+
+  const unwrapApiData = (payload) => payload?.data?.data ?? payload?.data ?? payload;
+
+  const formatExpireCountdown = (expireAt) => {
+    if (!expireAt) return '--:--';
+    const remainMs = new Date(expireAt).getTime() - nowTs;
+    if (remainMs <= 0) return t('bank_transfer_expired');
+    const totalSeconds = Math.floor(remainMs / 1000);
+    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  };
+
+  const handleVietQrStatusCheck = async (silent = false) => {
+    if (!vietQrPayment?.orderId || !vietQrPayment?.transactionRef) return false;
+    if (!silent) setIsCheckingVietQr(true);
+
+    try {
+      const response = await paymentApi.getVietQrStatus({
+        orderId: vietQrPayment.orderId,
+        transactionRef: vietQrPayment.transactionRef,
+      });
+      const statusData = unwrapApiData(response);
+      const isPaid = statusData?.isSuccess || statusData?.paymentStatus === 1;
+
+      if (isPaid) {
+        showToast(t('bank_transfer_paid_success'), 'success');
+        orderPlacedRef.current = true;
+        setOrderNo(vietQrPayment.orderNo || statusData?.orderNo || vietQrPayment.orderId);
+        setOrderPlaced(true);
+        setVietQrPayment(null);
+        if (!buyNowItem) {
+          clearCart();
+        }
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      if (!silent) {
+        console.error('VietQR status check failed:', error);
+        showToast(t('bank_transfer_status_check_error'), 'error');
+      }
+      return false;
+    } finally {
+      if (!silent) setIsCheckingVietQr(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const fetchLiveCoupons = async () => {
+        try {
+          const { data } = await apiService.get('/coupons', { params: { pageSize: 100 } });
+          const items = data?.data?.items || data?.items || [];
+          if (items.length > 0) {
+            setActiveCoupons(items.filter(c => c.status === 1));
+          }
+        } catch (error) {
+          console.error('Failed to fetch live coupons:', error);
+        }
+      };
+      fetchLiveCoupons();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && defaultAddress) {
       setShippingData({
         ship_recipient: defaultAddress.recipient,
+        ship_email: user?.email || '',
         ship_phone: defaultAddress.phone,
         ship_line1: defaultAddress.line1,
         ship_line2: defaultAddress.line2 ?? '',
@@ -103,6 +186,7 @@ const CheckoutPage = () => {
       if (addr) {
         setShippingData({
           ship_recipient: addr.recipient,
+          ship_email: user?.email || '',
           ship_phone: addr.phone,
           ship_line1: addr.line1,
           ship_line2: addr.line2 ?? '',
@@ -128,7 +212,89 @@ const CheckoutPage = () => {
     setShippingData({ ...shippingData, [e.target.name]: e.target.value });
   };
 
+  const validateCouponEligibility = (coupon) => {
+    if (!coupon) return { ok: false, reason: 'Mã giảm giá không hợp lệ.' };
+
+    const status = coupon.status;
+    const usageLimit = coupon.usageLimit ?? coupon.usage_limit;
+    const usageCount = coupon.usageCount ?? coupon.usage_count ?? 0;
+    const minOrderValue = Number(coupon.minOrderValue ?? coupon.min_order_value ?? 0);
+    const startAt = coupon.startAt ?? coupon.start_at;
+    const endAt = coupon.endAt ?? coupon.end_at;
+    const now = new Date();
+
+    if (status !== 1) return { ok: false, reason: 'Mã giảm giá hiện không khả dụng.' };
+    if (usageLimit != null && usageLimit > 0 && Number(usageCount) >= Number(usageLimit)) {
+      return { ok: false, reason: 'Mã giảm giá đã hết lượt sử dụng.' };
+    }
+    if (Number.isFinite(minOrderValue) && cartTotal < minOrderValue) {
+      return { ok: false, reason: `Đơn hàng chưa đạt giá trị tối thiểu ${formatVnd(minOrderValue)}.` };
+    }
+    if (startAt && new Date(startAt) > now) {
+      return { ok: false, reason: 'Mã giảm giá chưa đến thời gian áp dụng.' };
+    }
+    if (endAt && new Date(endAt) < now) {
+      return { ok: false, reason: 'Mã giảm giá đã hết hạn.' };
+    }
+
+    return { ok: true };
+  };
+
+  const normalizeCouponPayload = (payload) => payload?.data ?? payload;
+
+  const handleApplyCouponCode = async () => {
+    const rawCode = couponCodeInput.trim();
+    if (!rawCode) {
+      showToast('Vui lòng nhập mã giảm giá.', 'error');
+      return;
+    }
+
+    const normalizedCode = rawCode.toUpperCase();
+
+    try {
+      setIsApplyingCoupon(true);
+
+      let coupon =
+        activeCoupons.find((c) => String(c.code ?? '').toUpperCase() === normalizedCode) || null;
+
+      if (!coupon) {
+        const { data } = await apiService.get(`/coupons/code/${encodeURIComponent(normalizedCode)}`);
+        coupon = normalizeCouponPayload(data);
+      }
+
+      const eligibility = validateCouponEligibility(coupon);
+      if (!eligibility.ok) {
+        showToast(eligibility.reason, 'error');
+        return;
+      }
+
+      setSelectedCoupon(coupon);
+      setCouponCodeInput(String(coupon.code ?? normalizedCode));
+      showToast(t('discount_applied'), 'success');
+    } catch (error) {
+      console.error('Apply coupon failed:', error);
+      showToast('Không tìm thấy mã giảm giá.', 'error');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setSelectedCoupon(null);
+    setCouponCodeInput('');
+    showToast('Đã bỏ mã giảm giá.', 'info');
+  };
+
+  useEffect(() => {
+    setCouponCodeInput(selectedCoupon?.code ?? '');
+  }, [selectedCoupon]);
+
   const handlePlaceOrder = async () => {
+    if (paymentMethod === 'bank_transfer' && vietQrPayment?.orderId) {
+      showToast(t('bank_transfer_waiting_confirmation'), 'info');
+      return;
+    }
+
     setIsSubmitting(true);
     const orderPayload = buildOrderPayload();
 
@@ -146,7 +312,7 @@ const CheckoutPage = () => {
 
       if (!createdOrderId) {
         console.error('Không nhận được createdOrderId từ backend:', orderResponse);
-        showToast('Lỗi: Không lấy được ID đơn hàng sau khi tạo. Vui lòng kiểm tra lại API tạo đơn hàng.', 'error');
+        showToast(t('order_placed_error'), 'error');
         setIsSubmitting(false);
         return;
       }
@@ -158,6 +324,7 @@ const CheckoutPage = () => {
           orderDescription: `Thanh toan don hang ${createdOrderId}`,
           returnUrl: clientReturnUrl,
           clientReturnUrl,
+          recipientEmail: shippingData.ship_email?.trim(),
         };
         const response = await paymentApi.createVNPayUrl(payload);
 
@@ -167,9 +334,36 @@ const CheckoutPage = () => {
           return;
         } else {
           console.error("VNPay Error - No paymentUrl in response:", response);
-          showToast('Lỗi khi tạo giao dịch VNPay. Vui lòng thử lại!', 'error');
+          showToast(t('order_placed_error'), 'error');
         }
+      } else if (paymentMethod === 'bank_transfer') {
+        const bankTransferResponse = await paymentApi.createVietQr({
+          orderId: createdOrderId,
+          recipientEmail: shippingData.ship_email?.trim(),
+        });
+        const qrData = unwrapApiData(bankTransferResponse);
+
+        if (qrData?.qrCodeUrl) {
+          setVietQrPayment({
+            orderId: createdOrderId,
+            orderNo: createdOrderNo,
+            transactionRef: qrData.transactionRef,
+            qrCodeUrl: qrData.qrCodeUrl,
+            transferContent: qrData.transferContent,
+            accountName: qrData.accountName,
+            accountNumber: qrData.accountNumber,
+            bankBin: qrData.bankBin,
+            amount: qrData.amount,
+            expireAt: qrData.expireAt,
+          });
+          showToast(t('bank_transfer_qr_ready'), 'success');
+          return;
+        }
+
+        showToast(t('order_placed_error'), 'error');
       } else {
+        showToast(t('order_placed_success'), 'success');
+        orderPlacedRef.current = true;
         await new Promise((r) => setTimeout(r, 1200));
         setOrderNo(createdOrderNo);
         setOrderPlaced(true);
@@ -179,7 +373,7 @@ const CheckoutPage = () => {
       }
     } catch (error) {
       console.error("Order submission failed:", error);
-      showToast('Đã có lỗi xảy ra khi tạo đơn hàng. Vui lòng thử lại!', 'error');
+      showToast(t('order_placed_error'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -188,6 +382,8 @@ const CheckoutPage = () => {
   const buildOrderPayload = () => {
     return {
       userId: user?.id,
+      recipientEmail: shippingData.ship_email,
+      recipientName: shippingData.ship_recipient,
       shippingAddress: shippingData.ship_line1,
       phoneNumber: shippingData.ship_phone,
       ward: shippingData.ship_ward || '',
@@ -201,21 +397,48 @@ const CheckoutPage = () => {
   };
 
   useEffect(() => {
-    if (items.length === 0 && !orderPlaced) navigate('/cart');
+    if (items.length === 0 && !orderPlaced && !orderPlacedRef.current) navigate('/cart');
   }, [items.length, orderPlaced, navigate]);
+
+  useEffect(() => {
+    if (paymentMethod !== 'bank_transfer' && vietQrPayment) {
+      setVietQrPayment(null);
+    }
+  }, [paymentMethod, vietQrPayment]);
+
+  useEffect(() => {
+    if (!vietQrPayment?.orderId || !vietQrPayment?.transactionRef) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      handleVietQrStatusCheck(true);
+    }, 10000);
+
+    return () => window.clearInterval(intervalId);
+  }, [vietQrPayment?.orderId, vietQrPayment?.transactionRef]);
+
+  useEffect(() => {
+    if (!vietQrPayment?.expireAt) return undefined;
+    const timer = window.setInterval(() => {
+      setNowTs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [vietQrPayment?.expireAt]);
+
+  useEffect(() => () => {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+  }, []);
 
   if (orderPlaced) {
     return (
-      <div className="animate-fade-in min-h-[80vh] flex items-center justify-center">
+      <div className="animate-fade-in min-h-[80vh] flex flex-col items-center justify-center relative">
         <div className="container-custom py-20 text-center max-w-lg">
           <div className="w-20 h-20 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
             <HiOutlineCheckCircle className="w-10 h-10 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-3">{t('order_placed')}</h1>
-          <p className="text-slate-600 mb-2">{t('thank_you_purchase')}</p>
-          <p className="text-sm text-slate-500 mb-8">
-            {t('order_number')}: <span className="font-semibold text-slate-800">{orderNo}</span>
-          </p>
+          <p className="text-slate-600 mb-8">{t('email_sent_noti')}</p>
           <div className="flex items-center justify-center gap-4">
             {isAuthenticated ? (
               <Link to="/account/orders" className="btn-secondary">{t('view_orders')}</Link>
@@ -227,13 +450,19 @@ const CheckoutPage = () => {
             </Link>
           </div>
         </div>
+        <ToastNotification
+          isVisible={toastConfig.isVisible}
+          message={toastConfig.message}
+          status={toastConfig.status}
+          onClose={() => setToastConfig((prev) => ({ ...prev, isVisible: false }))}
+        />
       </div>
     );
   }
 
 
 
-  if (items.length === 0 && !orderPlaced) return null;
+  if (items.length === 0 && !orderPlaced && !orderPlacedRef.current) return null;
 
   return (
     <div className="animate-fade-in">
@@ -298,34 +527,46 @@ const CheckoutPage = () => {
                     value={shippingData.ship_recipient}
                     onChange={handleShippingChange}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                    placeholder="Full name"
+                    placeholder={t('checkout_fullname_placeholder') || 'Full name'}
                     required
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-1">
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('phone')}</label>
                   <input
                     name="ship_phone"
                     value={shippingData.ship_phone}
                     onChange={handleShippingChange}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="0912345678"
+                    placeholder={t('checkout_phone_placeholder') || '0912345678'}
+                    required
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('email_address') || 'Email'}</label>
+                  <input
+                    type="email"
+                    name="ship_email"
+                    value={shippingData.ship_email}
+                    onChange={handleShippingChange}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder={t('checkout_email_placeholder') || 'email@example.com'}
                     required
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Address line 1</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('address_line_1')}</label>
                   <input
                     name="ship_line1"
                     value={shippingData.ship_line1}
                     onChange={handleShippingChange}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Street address"
+                    placeholder={t('checkout_address_placeholder') || 'Street address'}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Ward</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('ward')}</label>
                   <input
                     name="ship_ward"
                     value={shippingData.ship_ward}
@@ -334,7 +575,7 @@ const CheckoutPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Province</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('province')}</label>
                   <input
                     name="ship_province"
                     value={shippingData.ship_province}
@@ -364,15 +605,15 @@ const CheckoutPage = () => {
               </div>
               <div className="flex items-center gap-2 mt-4 text-sm text-slate-500">
                 <HiOutlineLockClosed className="w-4 h-4" />
-                <span>Secure payment</span>
+                <span>{t('secure_payment')}</span>
               </div>
             </div>
 
             {isAuthenticated && (
               <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-800 mb-4">Coupon</h2>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('coupon')}</h2>
                 <CouponList
-                  coupons={coupons}
+                  coupons={activeCoupons}
                   subtotalAmount={cartTotal}
                   selectedCoupon={selectedCoupon}
                   onSelect={setSelectedCoupon}
@@ -410,6 +651,26 @@ const CheckoutPage = () => {
                 ))}
               </div>
               <div className="border-t border-slate-100 pt-4 space-y-2">
+                <div className="pb-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">{t('coupon')}</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={couponCodeInput}
+                      onChange={(e) => setCouponCodeInput(e.target.value)}
+                      placeholder={t('cart_promo_placeholder')}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={selectedCoupon ? handleRemoveCoupon : handleApplyCouponCode}
+                      disabled={isApplyingCoupon}
+                      className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {selectedCoupon ? t('cart_applied') : isApplyingCoupon ? t('processing') : t('cart_apply')}
+                    </button>
+                  </div>
+                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Subtotal</span>
                   <span className="text-slate-800">{formatVnd(totals.subtotal_amount)}</span>
@@ -433,13 +694,18 @@ const CheckoutPage = () => {
               </div>
               <button
                 onClick={handlePlaceOrder}
-                disabled={isSubmitting || !shippingData.ship_recipient || !shippingData.ship_phone || !shippingData.ship_line1}
+                disabled={isSubmitting || isCheckingVietQr || (paymentMethod === 'bank_transfer' && !!vietQrPayment?.orderId) || !shippingData.ship_recipient || !shippingData.ship_phone || !shippingData.ship_email || !shippingData.ship_line1}
                 className="w-full mt-6 py-3.5 rounded-xl bg-blue-500 text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
               >
                 {isSubmitting ? (
                   <>
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     {t('processing')}
+                  </>
+                ) : paymentMethod === 'bank_transfer' && vietQrPayment?.orderId ? (
+                  <>
+                    <HiOutlineLockClosed className="w-5 h-5" />
+                    {t('bank_transfer_waiting_confirmation')}
                   </>
                 ) : (
                   <>
@@ -448,6 +714,29 @@ const CheckoutPage = () => {
                   </>
                 )}
               </button>
+              {paymentMethod === 'bank_transfer' && vietQrPayment?.qrCodeUrl && (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-800">{t('bank_transfer_qr_title')}</p>
+                  <p className="text-xs text-slate-600 mt-1">{t('bank_transfer_qr_desc')}</p>
+                  <img
+                    src={vietQrPayment.qrCodeUrl}
+                    alt="VietQR"
+                    className="mx-auto mt-3 h-60 w-60 rounded-lg border border-slate-200 bg-white p-2"
+                  />
+                  <div className="mt-3 space-y-1 rounded-lg bg-white p-3 text-xs text-slate-700">
+                    <p><span className="font-semibold">{t('bank_transfer_amount')}:</span> {formatVnd(vietQrPayment.amount || totals.total_amount)}</p>
+                    <p><span className="font-semibold">{t('bank_transfer_account_name')}:</span> {vietQrPayment.accountName}</p>
+                    <p><span className="font-semibold">{t('bank_transfer_account_number')}:</span> {vietQrPayment.accountNumber}</p>
+                    <p><span className="font-semibold">{t('bank_transfer_content')}:</span> {vietQrPayment.transferContent}</p>
+                    <p>
+                      <span className="font-semibold">{t('bank_transfer_expire_time')}:</span>{' '}
+                      <span className={formatExpireCountdown(vietQrPayment.expireAt) === t('bank_transfer_expired') ? 'text-red-600 font-semibold' : ''}>
+                        {formatExpireCountdown(vietQrPayment.expireAt)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-4 text-xs text-slate-500">
                 <HiOutlineShieldCheck className="w-4 h-4 text-green-500" />
                 <span>{t('secure_checkout')}</span>

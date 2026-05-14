@@ -7,7 +7,7 @@ import {
 } from 'react-icons/hi2';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
-import { PriceDisplay, StarRating, ProductCard } from '../../components/shop';
+import { PriceDisplay, ProductCard } from '../../components/shop';
 import { products } from '../../data/mockData';
 import { useTranslation } from '../../context/LanguageContext';
 
@@ -108,9 +108,6 @@ const WishlistPage = () => {
                     >
                       {item.name}
                     </Link>
-                    <div className="mt-1">
-                      <StarRating rating={item.rating} size="sm" />
-                    </div>
                   </div>
                   <PriceDisplay price={item.price} discountPrice={item.discountPrice} size="sm" />
                 </div>

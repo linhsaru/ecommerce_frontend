@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Tags, Plus, Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { Tags, Plus, Search, ChevronRight, ChevronDown, X, Loader2, Save } from 'lucide-react';
 import { useCategoryStore } from '../../../store/categoryStore';
+import { apiService } from '../../../services';
 import Pagination from '../../../components/data-displays/Pagination/Pagination';
+import Modal from '../../../components/common/Modal/Modal';
+import ConfirmDeleteModal from '../../../components/common/Modal/ConfirmDeleteModal';
+import ToastNotification from '../../../components/common/ToastNotification/ToastNotification';
 
-const CategoryRow = ({ category, level = 0 }) => {
+const INITIAL_FORM = {
+  id: '',
+  name: '',
+  slug: '',
+  parentId: '',
+  sortOrder: 0,
+};
+
+const CategoryRow = ({ category, level = 0, onEdit, onDelete, isBusy }) => {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = category.children && category.children.length > 0;
 
@@ -40,17 +52,32 @@ const CategoryRow = ({ category, level = 0 }) => {
         </td>
         <td className="px-6 py-4">
           <div className="flex justify-end gap-2">
-            <button className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+            <button
+              onClick={() => onEdit(category)}
+              disabled={isBusy}
+              className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-60"
+            >
               Sửa
             </button>
-            <button className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors">
+            <button
+              onClick={() => onDelete(category)}
+              disabled={isBusy}
+              className="text-xs px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-60"
+            >
               Xóa
             </button>
           </div>
         </td>
       </tr>
       {expanded && hasChildren && category.children.map(child => (
-        <CategoryRow key={child.id} category={child} level={level + 1} />
+        <CategoryRow
+          key={child.id}
+          category={child}
+          level={level + 1}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          isBusy={isBusy}
+        />
       ))}
     </>
   );
@@ -69,13 +96,134 @@ const CategoryManagementPage = () => {
     setFilters,
     setPage,
     fetchCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
   } = useCategoryStore();
 
   const [localSearch, setLocalSearch] = useState(search || '');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('add');
+  const [formData, setFormData] = useState(INITIAL_FORM);
+  const [formError, setFormError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, category: null });
+  const [toast, setToast] = useState({ isVisible: false, message: '', status: 'info' });
 
   useEffect(() => {
     fetchCategories().catch(() => { });
   }, [page]);
+
+  const showToast = (message, status = 'info') => {
+    setToast({ isVisible: true, message, status });
+  };
+
+  const closeToast = () => {
+    setToast((prev) => ({ ...prev, isVisible: false }));
+  };
+
+  const handleOpenModal = (mode, category = null) => {
+    setModalMode(mode);
+    setFormError('');
+    if (mode === 'edit' && category) {
+      setFormData({
+        id: category.id,
+        name: category.name || '',
+        slug: category.slug || '',
+        parentId: category.parentId || '',
+        sortOrder: Number(category.sortOrder || 0),
+      });
+    } else {
+      setFormData(INITIAL_FORM);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    if (isSaving) return;
+    setIsModalOpen(false);
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === 'sortOrder' ? Number(value) : value,
+    }));
+  };
+
+  const handleSubmitCategory = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        parentId: formData.parentId || null,
+        sortOrder: Number(formData.sortOrder || 0),
+      };
+
+      if (modalMode === 'add') {
+        await createCategory(payload);
+        showToast('Thêm danh mục thành công.', 'success');
+      } else {
+        await updateCategory(formData.id, payload);
+        showToast('Cập nhật danh mục thành công.', 'success');
+      }
+
+      await fetchCategories({ page: 1, search: localSearch.trim() });
+      setIsModalOpen(false);
+    } catch (err) {
+      const message = err.message || 'Không thể lưu danh mục.';
+      setFormError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasProductsInCategory = async (categoryId) => {
+    const { data: response } = await apiService.get('/products', {
+      params: {
+        page: 1,
+        pageSize: 1,
+        categoryId,
+      },
+    });
+    const root = response?.data ?? response;
+    const payload = root?.data ?? root;
+    if (typeof payload?.totalItems === 'number') {
+      return payload.totalItems > 0;
+    }
+    const items = Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    return items.length > 0;
+  };
+
+  const promptDelete = async (category) => {
+    try {
+      const hasProducts = await hasProductsInCategory(category.id);
+      if (hasProducts) {
+        showToast('Danh mục đang có sản phẩm, không thể xóa.', 'warning');
+        return;
+      }
+      setDeleteModalState({ isOpen: true, category });
+    } catch (err) {
+      showToast(err.message || 'Không thể kiểm tra dữ liệu sản phẩm trong danh mục.', 'error');
+    }
+  };
+
+  const executeDelete = async () => {
+    const category = deleteModalState.category;
+    if (!category?.id) return;
+    await deleteCategory(category.id);
+    await fetchCategories({ page: 1, search: localSearch.trim() });
+    showToast('Xóa danh mục thành công.', 'success');
+    setDeleteModalState({ isOpen: false, category: null });
+  };
 
   const handleSearch = () => {
     setFilters({
@@ -134,7 +282,10 @@ const CategoryManagementPage = () => {
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Quản lý danh mục</h2>
           <p className="text-sm text-slate-500 mt-1">Cấu trúc và sắp xếp danh mục sản phẩm của cửa hàng.</p>
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm shadow-indigo-200">
+        <button
+          onClick={() => handleOpenModal('add')}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm shadow-indigo-200"
+        >
           <Plus className="w-4 h-4" />
           <span>Thêm danh mục</span>
         </button>
@@ -209,7 +360,10 @@ const CategoryManagementPage = () => {
                       <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">
                         Dữ liệu danh mục chưa được tạo. Hãy tạo danh mục trước khi thêm sản phẩm vào hệ thống.
                       </p>
-                      <button className="flex items-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl font-medium transition-colors text-sm">
+                      <button
+                        onClick={() => handleOpenModal('add')}
+                        className="flex items-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2 rounded-xl font-medium transition-colors text-sm"
+                      >
                         <Plus className="w-4 h-4" />
                         <span>Tạo danh mục mới</span>
                       </button>
@@ -219,7 +373,13 @@ const CategoryManagementPage = () => {
               )}
 
               {!isLoading && categoryTree && categoryTree.map((category) => (
-                <CategoryRow key={category.id} category={category} />
+                <CategoryRow
+                  key={category.id}
+                  category={category}
+                  onEdit={(selected) => handleOpenModal('edit', selected)}
+                  onDelete={promptDelete}
+                  isBusy={isLoading}
+                />
               ))}
             </tbody>
           </table>
@@ -238,6 +398,126 @@ const CategoryManagementPage = () => {
           </div>
         )}
       </div>
+
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal}>
+        <div className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden mx-4">
+          <div className="flex items-center justify-between p-6 border-b border-slate-100">
+            <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+              {modalMode === 'add' ? 'Thêm danh mục' : 'Sửa danh mục'}
+            </h2>
+            <button
+              onClick={handleCloseModal}
+              disabled={isSaving}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors disabled:opacity-60"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            {formError && (
+              <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-sm mb-6">
+                {formError}
+              </div>
+            )}
+            <form id="category-form" onSubmit={handleSubmitCategory} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">Tên danh mục *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    value={formData.name}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    placeholder="Nhập tên danh mục"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">Đường dẫn (Slug) *</label>
+                  <input
+                    type="text"
+                    name="slug"
+                    required
+                    value={formData.slug}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    placeholder="linh-kien-may-tinh"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">Danh mục cha</label>
+                  <select
+                    name="parentId"
+                    value={formData.parentId}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  >
+                    <option value="">-- Không có --</option>
+                    {items
+                      .filter((item) => item.id !== formData.id)
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">Thứ tự sắp xếp</label>
+                  <input
+                    type="number"
+                    name="sortOrder"
+                    min="0"
+                    value={formData.sortOrder}
+                    onChange={handleFormChange}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  />
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              disabled={isSaving}
+              className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-60"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              form="category-form"
+              disabled={isSaving}
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-200 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>Lưu thay đổi</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDeleteModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, category: null })}
+        onConfirm={executeDelete}
+        title="Xóa danh mục"
+        message="Bạn có chắc chắn muốn xóa danh mục này không? Hành động này không thể hoàn tác."
+      />
+
+      <ToastNotification
+        message={toast.message}
+        status={toast.status}
+        isVisible={toast.isVisible}
+        onClose={closeToast}
+      />
     </div>
   );
 };

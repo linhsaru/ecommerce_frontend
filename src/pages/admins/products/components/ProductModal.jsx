@@ -4,16 +4,26 @@ import { apiService } from '../../../../services';
 import Modal from '../../../../components/common/Modal/Modal';
 import { useTranslation } from '../../../../context/LanguageContext';
 import { formatVnd } from '../../../../utils/price';
+import { useCategoryStore } from '../../../../store/categoryStore';
 
 const INITIAL_STATE = {
+  id: '',
   name: '',
   slug: '',
-  brandName: '',
+  brandId: '',
+  categoryId: '',
   description: '',
   originalPrice: 0,
   discountedPrice: 0,
   status: 1,
   thumbnailUrl: '',
+  primaryVariantId: '',
+  primaryVariantSku: '',
+  sku: '',
+  variantName: '',
+  price: '',
+  compareAt: '',
+  cost: '',
 };
 
 const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
@@ -22,6 +32,20 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const [brands, setBrands] = useState([]);
+  const { items: categories, fetchCategories } = useCategoryStore();
+
+  useEffect(() => {
+    fetchCategories().catch(() => { });
+    apiService.get('/brands')
+      .then(res => {
+        const root = res?.data ?? res;
+        const payload = root?.data ?? root;
+        setBrands(Array.isArray(payload) ? payload : (payload?.items ?? []));
+      })
+      .catch(err => console.error('Failed to load brands', err));
+  }, []);
 
   const isViewMode = mode === 'view';
   const title = {
@@ -40,21 +64,39 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
     }
   }, [isOpen, mode, productSlug]);
 
+  const pickPrimaryVariant = (productData) => {
+    const variants = Array.isArray(productData?.variants) ? productData.variants : [];
+    const active = variants.filter((v) => Number(v.status) === 1);
+    const pool = active.length ? active : variants;
+    if (!pool.length) return null;
+    return [...pool].sort((a, b) => Number(a.price) - Number(b.price))[0];
+  };
+
   const fetchProductDetails = async (slug) => {
     setIsLoading(true);
     setError(null);
     try {
       const { data } = await apiService.get(`/products/slug/${slug}`);
       const productData = data.data || data;
+      const primary = pickPrimaryVariant(productData);
       setFormData({
+        id: productData.id || '',
         name: productData.name || '',
         slug: productData.slug || '',
-        brandName: productData.brandName || '',
+        brandId: productData.brandId || '',
+        categoryId: (productData.categories && productData.categories.length > 0) ? productData.categories[0].id : (productData.categoryIds && productData.categoryIds.length > 0) ? productData.categoryIds[0] : '',
         description: productData.description || '',
         originalPrice: productData.originalPrice || 0,
         discountedPrice: productData.discountedPrice || 0,
         status: productData.status ?? 1,
         thumbnailUrl: productData.thumbnailUrl || '',
+        primaryVariantId: primary?.id || '',
+        primaryVariantSku: primary?.sku || '',
+        sku: '',
+        variantName: '',
+        price: primary != null ? String(primary.price ?? '') : '',
+        compareAt: primary != null && primary.compareAt != null ? String(primary.compareAt) : '',
+        cost: primary != null && primary.cost != null ? String(primary.cost) : '',
       });
     } catch (err) {
       setError(err.message || 'Không thể tải thông tin sản phẩm');
@@ -65,9 +107,16 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    if (type === 'number') {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value === '' ? '' : Number(value),
+      }));
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : value,
+      [name]: value,
     }));
   };
 
@@ -78,12 +127,39 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
     setIsSaving(true);
     setError(null);
     try {
+      const payload = {
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description,
+        status: Number(formData.status),
+        thumbnailUrl: formData.thumbnailUrl,
+        brandId: formData.brandId || undefined,
+        categoryIds: formData.categoryId ? [formData.categoryId] : []
+      };
+
       if (mode === 'add') {
-        await apiService.post('/products', formData);
+        const price = Number(formData.price);
+        if (!Number.isFinite(price) || price < 0) throw new Error('Giá bán không hợp lệ.');
+        payload.initialVariant = {
+          sku: formData.sku || '',
+          variantName: formData.variantName || 'Mặc định',
+          price,
+          compareAt: formData.compareAt === '' || formData.compareAt == null ? null : Number(formData.compareAt),
+          cost: formData.cost === '' || formData.cost == null ? null : Number(formData.cost),
+        };
+        await apiService.post('/products', payload);
       } else if (mode === 'edit') {
-        // Assume PUT /products/{id} or /products/slug/{slug} depends on your backend
-        // Use slug for now as it's what we have
-        await apiService.put(`/products/${productSlug}`, formData);
+        if (!formData.id) throw new Error('Missing Product ID');
+        const price = Number(formData.price);
+        if (!Number.isFinite(price) || price < 0) throw new Error('Giá bán không hợp lệ.');
+        if (!formData.primaryVariantId) throw new Error('Không tìm thấy biến thể để cập nhật giá.');
+        payload.variantPricing = {
+          variantId: formData.primaryVariantId,
+          price,
+          compareAt: formData.compareAt === '' || formData.compareAt == null ? null : Number(formData.compareAt),
+          cost: formData.cost === '' || formData.cost == null ? null : Number(formData.cost),
+        };
+        await apiService.put(`/products/${formData.id}`, payload);
       }
       onSuccess?.();
       onClose();
@@ -154,15 +230,34 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Thương hiệu</label>
-                  <input
-                    type="text"
-                    name="brandName"
-                    value={formData.brandName}
+                  <select
+                    name="brandId"
+                    value={formData.brandId}
                     onChange={handleChange}
                     disabled={isViewMode}
                     className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 disabled:bg-slate-100 transition-all"
-                    placeholder="VD: Asus, Gigabyte..."
-                  />
+                  >
+                    <option value="">-- Chọn thương hiệu --</option>
+                    {brands.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">Danh mục</label>
+                  <select
+                    name="categoryId"
+                    value={formData.categoryId}
+                    onChange={handleChange}
+                    disabled={isViewMode}
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 disabled:bg-slate-100 transition-all"
+                  >
+                    <option value="">-- Chọn danh mục --</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-1.5">
@@ -174,52 +269,152 @@ const ProductModal = ({ isOpen, onClose, mode, productSlug, onSuccess }) => {
                     disabled={isViewMode}
                     className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 disabled:bg-slate-100 transition-all"
                   >
-                    <option value={1}>Đang bán</option>
-                    <option value={0}>Ngừng bán</option>
-                    <option value={2}>Nháp</option>
+                    <option value={1}>Còn hàng</option>
+                    <option value={0}>Hết hàng</option>
                   </select>
                 </div>
               </div>
 
-              {/* Pricing Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Giá gốc (VNĐ) *</label>
-                  {isViewMode ? (
-                    <div className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm opacity-60 cursor-not-allowed">
-                      {formatVnd(formData.originalPrice)}
-                    </div>
-                  ) : (
+              {/* Pricing & Variant Section */}
+              {mode === 'add' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                  <div className="col-span-1 md:col-span-2">
+                    <h3 className="text-sm font-semibold text-indigo-900">Chi tiết biến thể mặc định</h3>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Mã SKU</label>
+                    <input
+                      type="text"
+                      name="sku"
+                      value={formData.sku}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="VD: ASUS-RTX4090"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Tên biến thể</label>
+                    <input
+                      type="text"
+                      name="variantName"
+                      value={formData.variantName}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="VD: Mặc định"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Giá bán (VNĐ) *</label>
                     <input
                       type="number"
-                      name="originalPrice"
+                      name="price"
                       min="0"
+                      step="1"
                       required
-                      value={formData.originalPrice}
+                      value={formData.price}
                       onChange={handleChange}
                       className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
                     />
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Giá khuyến mãi (VNĐ)</label>
-                  {isViewMode ? (
-                    <div className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm opacity-60 cursor-not-allowed">
-                      {formatVnd(formData.discountedPrice)}
-                    </div>
-                  ) : (
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Giá gốc / Niêm yết (VNĐ)</label>
                     <input
                       type="number"
-                      name="discountedPrice"
+                      name="compareAt"
                       min="0"
-                      value={formData.discountedPrice}
+                      step="1"
+                      value={formData.compareAt}
                       onChange={handleChange}
                       className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                      placeholder="Để trống nếu không hiển thị giá gốc"
                     />
-                  )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Giá nhập (VNĐ)</label>
+                    <input
+                      type="number"
+                      name="cost"
+                      min="0"
+                      step="1"
+                      value={formData.cost}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                      placeholder="Giá vốn / nhập kho"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="col-span-1 md:col-span-2">
+                    <h3 className="text-sm font-semibold text-slate-800">Giá biến thể chính</h3>
+                    {formData.primaryVariantSku ? (
+                      <p className="text-xs text-slate-500 mt-1">SKU: {formData.primaryVariantSku}</p>
+                    ) : (
+                      <p className="text-xs text-amber-700 mt-1">Không có biến thể hoạt động — không thể cập nhật giá.</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Giá gốc / Niêm yết (VNĐ)</label>
+                    {isViewMode ? (
+                      <div className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800">
+                        {formData.compareAt === '' || formData.compareAt == null ? '—' : formatVnd(Number(formData.compareAt))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        name="compareAt"
+                        min="0"
+                        step="1"
+                        value={formData.compareAt}
+                        onChange={handleChange}
+                        disabled={!formData.primaryVariantId}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 transition-all"
+                        placeholder="Để trống nếu không hiển thị giá gốc"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Giá bán (VNĐ) *</label>
+                    {isViewMode ? (
+                      <div className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 font-semibold">
+                        {formData.price === '' ? '—' : formatVnd(Number(formData.price))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        name="price"
+                        min="0"
+                        step="1"
+                        required
+                        value={formData.price}
+                        onChange={handleChange}
+                        disabled={!formData.primaryVariantId}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 transition-all font-medium"
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-medium text-slate-700">Giá nhập (VNĐ)</label>
+                    {isViewMode ? (
+                      <div className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800">
+                        {formData.cost === '' || formData.cost == null ? '—' : formatVnd(Number(formData.cost))}
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        name="cost"
+                        min="0"
+                        step="1"
+                        value={formData.cost}
+                        onChange={handleChange}
+                        disabled={!formData.primaryVariantId}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60 transition-all"
+                        placeholder="Giá vốn / nhập kho (tuỳ chọn)"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Description Section */}
               <div className="space-y-1.5">

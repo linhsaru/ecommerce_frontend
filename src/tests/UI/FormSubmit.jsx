@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import TextField from '../../components/form/TextField';
-import { apiGetDemo } from '../../api/demo';
+import { apiGetDemo } from '../../services/demo';
 import loginFormRules from '../../forms/formRules/loginFormRules';
 import SelectField from '../../components/form/SelectField';
 import CheckboxField from '../../components/form/CheckboxField';

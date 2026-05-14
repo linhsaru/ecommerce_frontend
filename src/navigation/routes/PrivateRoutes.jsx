@@ -15,14 +15,8 @@ const ProductManagementPage = lazy(
 const InventoryManagementPage = lazy(
   () => import('../../pages/admins/inventory/InventoryManagementPage')
 );
-const AnalyticsDashboardPage = lazy(
-  () => import('../../pages/admins/analytics/AnalyticsDashboardPage')
-);
 const PromotionsPage = lazy(
   () => import('../../pages/admins/promotions/PromotionsPage')
-);
-const CampaignManagementPage = lazy(
-  () => import('../../pages/admins/promotions/CampaignManagementPage')
 );
 const OrdersManagementPage = lazy(
   () => import('../../pages/admins/orders/OrdersManagementPage')
@@ -74,16 +68,6 @@ const privateRoutes = [
   {
     path: 'admin/promotions',
     element: <PromotionsPage />,
-    access: ['RoleAdmin'],
-  },
-  {
-    path: 'admin/campaigns',
-    element: <CampaignManagementPage />,
-    access: ['RoleAdmin'],
-  },
-  {
-    path: 'admin/analytics',
-    element: <AnalyticsDashboardPage />,
     access: ['RoleAdmin'],
   },
   {

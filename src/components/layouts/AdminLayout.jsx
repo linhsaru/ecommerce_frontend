@@ -14,7 +14,6 @@ import {
   History,
   BarChart3,
   LineChart,
-  Gift,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -52,18 +51,6 @@ const menuItems = [
     to: '/admin/promotions'
   },
   {
-    id: 'campaigns',
-    label: 'C.trình khuyến mãi',
-    icon: Gift,
-    to: '/admin/campaigns'
-  },
-  {
-    id: 'analytics',
-    label: 'Thống kê & báo cáo',
-    icon: BarChart3,
-    to: '/admin/analytics'
-  },
-  {
     id: 'orders',
     label: 'Quản lý đơn hàng',
     icon: ShoppingCart,
@@ -91,9 +78,8 @@ const AdminLayout = ({ children }) => {
     <div className="h-screen flex bg-slate-50 overflow-hidden">
       {/* Sidebar */}
       <aside
-        className={`h-full flex flex-col bg-white text-slate-600 transition-all duration-300 border-r border-slate-200 z-50 flex-shrink-0 ${
-          collapsed ? 'w-20' : 'w-64'
-        }`}
+        className={`h-full flex flex-col bg-white text-slate-600 transition-all duration-300 border-r border-slate-200 z-50 flex-shrink-0 ${collapsed ? 'w-20' : 'w-64'
+          }`}
       >
         {/* Logo and collapse button */}
         <div className="h-[72px] flex items-center justify-between px-4 border-b border-slate-100">
@@ -196,18 +182,6 @@ const AdminLayout = ({ children }) => {
 
           {/* Admin Profile Area */}
           <div className="flex items-center gap-5">
-            {/* Some mock top-icons for MatDash style */}
-            <div className="hidden md:flex items-center gap-3">
-              <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              </button>
-              <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors relative">
-                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-              </button>
-            </div>
-
-            <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
 
             {/* Profile Menu Dropdown (Mocked) */}
             <div className="flex items-center gap-3 cursor-pointer group">

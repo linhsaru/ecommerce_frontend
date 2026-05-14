@@ -14,8 +14,9 @@ const AccountPage = lazy(() => import('../../pages/clients/AccountPage'));
 const VNPayReturnPage = lazy(() => import('../../pages/clients/VNPayReturnPage'));
 const LoginPage = lazy(() => import('../../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../../pages/auth/RegisterPage'));
-const TechNewsPage = lazy(() => import('../../pages/clients/TechNewsPage'));
+const AboutPage = lazy(() => import('../../pages/clients/About'));
 const OrderLookupPage = lazy(() => import('../../pages/clients/OrderLookupPage'));
+const QuotationPrint = lazy(() => import('../../pages/clients/QuotationPrint'));
 
 export const PublicRoute = ({ isAuthenticated, children }) => {
   return isAuthenticated ? <Navigate to="/app" /> : children;
@@ -70,12 +71,16 @@ const publicRoutes = [
         element: <RegisterPage />,
       },
       {
-        path: '/news',
-        element: <TechNewsPage />,
+        path: '/about',
+        element: <AboutPage />,
       },
       {
         path: '/build-pc',
         element: <BuildPCPage />
+      },
+      {
+        path: '/quotation',
+        element: <QuotationPrint />
       },
       {
         path: '/order-lookup',

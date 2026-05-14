@@ -183,6 +183,10 @@
     @apply badge bg-danger-50 text-danger-700;
   }
 
+  .badge-warning {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+
   /* Container */
   .container-custom {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;

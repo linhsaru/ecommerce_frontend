@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Filter, X } from 'lucide-react';
 import { useTranslation } from '../../context/LanguageContext';
 import { formatVnd } from '../../utils/price';
@@ -17,12 +18,33 @@ const Sidebar = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const [customMin, setCustomMin] = useState('');
+  const [customMax, setCustomMax] = useState('');
+
+  useEffect(() => {
+    if (priceSlider[0] === priceRange.min && priceSlider[1] === priceRange.max) {
+      setCustomMin('');
+      setCustomMax('');
+    }
+  }, [priceSlider, priceRange]);
 
   const activeCount = [
     ...selectedBrands,
     selectedUsagePurpose,
     priceSlider[0] !== priceRange.min || priceSlider[1] !== priceRange.max,
   ].filter(Boolean).length;
+
+  const handlePredefinedRange = (min, max) => {
+    setCustomMin('');
+    setCustomMax('');
+    onPriceChange([min, max]);
+  };
+
+  const handleCustomApply = () => {
+    const min = customMin ? Number(customMin) : 0;
+    const max = customMax ? Number(customMax) : 999999999;
+    onPriceChange([min, max]);
+  };
 
   return (
     <>
@@ -69,33 +91,73 @@ const Sidebar = ({
           </div>
 
           <div className="space-y-6">
-            {/* Price Range Slider */}
+            {/* Price Range */}
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <h4 className="text-sm font-semibold text-slate-800 mb-4">{t('price_range')}</h4>
+              <h4 className="text-sm font-semibold text-slate-800 mb-4">{t('price_range') || 'Khoảng giá'}</h4>
               <div className="space-y-3">
-                <input
-                  type="range"
-                  min={priceRange.min}
-                  max={priceRange.max}
-                  value={priceSlider[0]}
-                  onChange={(e) =>
-                    onPriceChange([Number(e.target.value), Math.max(Number(e.target.value), priceSlider[1])])
-                  }
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <input
-                  type="range"
-                  min={priceRange.min}
-                  max={priceRange.max}
-                  value={priceSlider[1]}
-                  onChange={(e) =>
-                    onPriceChange([Math.min(Number(e.target.value), priceSlider[0]), Number(e.target.value)])
-                  }
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <p className="text-sm text-slate-600">
-                  {formatVnd(priceSlider[0])} - {formatVnd(priceSlider[1])}
-                </p>
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={priceSlider[0] === 0 && priceSlider[1] === 10000000}
+                    onChange={(e) => {
+                      if (e.target.checked) handlePredefinedRange(0, 10000000);
+                      else handlePredefinedRange(priceRange.min, priceRange.max);
+                    }}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-600 group-hover:text-slate-800">Dưới 10 triệu</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={priceSlider[0] === 10000000 && priceSlider[1] === 30000000}
+                    onChange={(e) => {
+                      if (e.target.checked) handlePredefinedRange(10000000, 30000000);
+                      else handlePredefinedRange(priceRange.min, priceRange.max);
+                    }}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-600 group-hover:text-slate-800">10 - 30 triệu</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={priceSlider[0] === 30000000 && priceSlider[1] === 999999999}
+                    onChange={(e) => {
+                      if (e.target.checked) handlePredefinedRange(30000000, 999999999);
+                      else handlePredefinedRange(priceRange.min, priceRange.max);
+                    }}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500/20 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-600 group-hover:text-slate-800">Trên 30 triệu</span>
+                </label>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <p className="text-sm text-slate-600 mb-2">Hoặc nhập khoảng giá:</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={customMin}
+                    onChange={(e) => setCustomMin(e.target.value)}
+                    placeholder="Từ"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                  <span className="text-slate-400">-</span>
+                  <input
+                    type="number"
+                    value={customMax}
+                    onChange={(e) => setCustomMax(e.target.value)}
+                    placeholder="Đến"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={handleCustomApply}
+                  className="mt-3 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Áp dụng
+                </button>
               </div>
             </div>
 
@@ -117,31 +179,6 @@ const Sidebar = ({
               </div>
             </div>
 
-            {/* Usage Purpose */}
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <h4 className="text-sm font-semibold text-slate-800 mb-3">{t('usage_purpose')}</h4>
-              <div className="space-y-1.5">
-                <button
-                  onClick={() => onUsagePurposeChange('')}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedUsagePurpose
-                    ? 'bg-blue-50 text-blue-600 font-medium'
-                    : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                >
-                  {t('all') || 'All'}
-                </button>
-                {usagePurposes.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => onUsagePurposeChange(selectedUsagePurpose === p.id ? '' : p.id)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${selectedUsagePurpose === p.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {activeCount > 0 && (
@@ -149,7 +186,7 @@ const Sidebar = ({
               onClick={onClearFilters}
               className="mt-6 w-full py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 transition-colors"
             >
-              Clear all filters
+              {t('clear_all_filters')}
             </button>
           )}
 
