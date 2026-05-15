@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, User, Loader2, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Send, User, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { chatApi } from '../../services/chatApi';
+import logoAi from '../../assets/images/logo_ai.png';
+
+/** Tròn 50%, dùng chung cho toggle / header / bubble bot */
+const LogoAiAvatar = ({ className = '' }) => (
+  <img src={logoAi} alt="" className={`rounded-full object-cover ${className}`} decoding="async" />
+);
 
 const formatBotMessage = (text) => {
   if (typeof text !== 'string') return text;
@@ -100,7 +106,9 @@ const ChatBot = () => {
           {/* Header */}
           <div className="bg-primary-600 text-white p-4 flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Bot size={24} />
+              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 ring-white/35">
+                <LogoAiAvatar className="h-full w-full" />
+              </div>
               <span className="font-semibold text-body-md">AI Assistant</span>
             </div>
             <div className="flex items-center gap-2">
@@ -133,10 +141,10 @@ const ChatBot = () => {
                     }`}
                 >
                   <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.sender === 'user' ? 'bg-primary-500 text-white' : 'bg-neutral-200 text-neutral-600'
+                    className={`flex-shrink-0 w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ${msg.sender === 'user' ? 'bg-primary-500 text-white' : 'ring-1 ring-neutral-200'
                       }`}
                   >
-                    {msg.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
+                    {msg.sender === 'user' ? <User size={16} /> : <LogoAiAvatar className="h-full w-full" />}
                   </div>
                   <div
                     className={`py-2 px-3 rounded-2xl ${msg.sender === 'user'
@@ -156,8 +164,8 @@ const ChatBot = () => {
             {isLoading && (
               <div className="flex justify-start">
                 <div className="flex gap-2 max-w-[85%] flex-row">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-neutral-200 text-neutral-600">
-                    <Bot size={16} />
+                  <div className="flex-shrink-0 w-8 h-8 overflow-hidden rounded-full ring-1 ring-neutral-200">
+                    <LogoAiAvatar className="h-full w-full" />
                   </div>
                   <div className="py-2 px-4 rounded-2xl bg-white border border-neutral-200 text-neutral-800 rounded-tl-none flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -197,11 +205,12 @@ const ChatBot = () => {
       {/* Toggle Button */}
       {!isOpen && (
         <button
+          type="button"
           onClick={toggleChat}
-          className="bg-primary-600 text-white p-5 rounded-full shadow-lg hover:bg-primary-700 hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center animate-[bounce_2s_infinite]"
+          className="w-20 h-20 p-0 rounded-full overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center animate-[bounce_2s_infinite] ring-2 ring-primary-500 ring-offset-2 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-400"
           aria-label="Open Chat"
         >
-          <Bot size={40} />
+          <LogoAiAvatar className="h-full w-full rounded-[50%]" />
         </button>
       )}
     </div>

@@ -265,7 +265,7 @@ const DashboardPage = () => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Admin Dashboard</h2>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Tổng quan</h2>
           <p className="text-sm text-slate-500 mt-1">{headerSubtitle}</p>
         </div>
 

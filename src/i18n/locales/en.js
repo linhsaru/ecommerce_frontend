@@ -219,6 +219,8 @@ export default {
   build_modal_empty_desc: 'No products in related categories or try different keywords.',
   build_modal_brand: 'Brand:',
   build_modal_add: 'Add',
+  build_cart_missing_variant: 'Some parts are missing a valid variant and cannot be added to the cart.',
+  build_product_no_variant: 'This product has no usable variant for cart.',
 
   // Landing Page
   landing_welcome: 'Welcome to our system',

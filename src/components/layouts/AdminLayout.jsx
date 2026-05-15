@@ -3,21 +3,16 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Package,
-  Cpu,
-  Workflow,
   Tags,
   ShoppingCart,
-  Receipt,
   CreditCard,
   Users,
-  Shield,
   History,
-  BarChart3,
-  LineChart,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import logo from '../../assets/images/logo.png';
 
 const menuItems = [
   {
@@ -82,16 +77,15 @@ const AdminLayout = ({ children }) => {
           }`}
       >
         {/* Logo and collapse button */}
-        <div className="h-[72px] flex items-center justify-between px-4 border-b border-slate-100">
-          <Link to="/admin" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/20">
-              <Cpu className="w-5 h-5 text-white" />
+        <div className="h-[72px] flex items-center justify-between gap-2 px-4 border-b border-slate-100">
+          <Link to="/admin" className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white overflow-hidden p-0.5 border border-slate-100 shadow-sm flex-shrink-0">
+              <img src={logo} alt="LH Computer" className="w-full h-full object-contain" />
             </div>
             {!collapsed && (
-              <div className="flex flex-col">
-                <span className="text-base font-bold text-slate-800 leading-tight">Admin<span className="text-indigo-600">Dash</span></span>
-                <span className="text-[11px] text-slate-500 font-medium leading-tight tracking-wide">ECOMMERCE</span>
-              </div>
+              <span className="text-base font-bold text-slate-800 leading-tight tracking-tight truncate">
+                LH Admin Page<span className="text-primary-600">.</span>
+              </span>
             )}
           </Link>
           <button
@@ -171,12 +165,12 @@ const AdminLayout = ({ children }) => {
           {/* Breadcrumbs */}
           <div className="flex flex-col">
             <div className="flex items-center gap-2 text-[13px] text-slate-500 font-medium">
-              <span>Admin</span>
+              <span>LH Admin Page</span>
               <span className="text-slate-300">/</span>
               <span className="capitalize text-slate-800">{location.pathname.replace('/admin', '').replace('/', ' ') || 'Dashboard'}</span>
             </div>
             <h1 className="text-lg font-bold text-slate-800 mt-0.5 tracking-tight">
-              {location.pathname === '/admin' ? 'Overview Dashboard' : sectionName || 'Management'}
+              {location.pathname === '/admin' ? 'Tổng quan' : sectionName || 'Quản lý'}
             </h1>
           </div>
 

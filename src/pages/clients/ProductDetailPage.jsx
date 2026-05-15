@@ -4,7 +4,6 @@ import {
   HiOutlineHeart,
   HiHeart,
   HiOutlineShoppingBag,
-  HiOutlineShare,
   HiOutlineTruck,
   HiOutlineShieldCheck,
   HiOutlineArrowPath,
@@ -524,12 +523,6 @@ const ProductDetailPage = () => {
                   }`}
               >
                 {isInWishlist ? <HiHeart className="w-5 h-5" /> : <HiOutlineHeart className="w-5 h-5" />}
-              </button>
-              <button
-                type="button"
-                className="btn-icon btn-lg bg-white border border-neutral-200 text-neutral-500 hover:text-primary-600 hover:border-primary-200 transition-all duration-200 shrink-0"
-              >
-                <HiOutlineShare className="w-5 h-5" />
               </button>
             </div>
 
