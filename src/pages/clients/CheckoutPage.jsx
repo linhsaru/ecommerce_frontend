@@ -499,7 +499,6 @@ const CheckoutPage = () => {
               </h2>
               {isAuthenticated && userAddresses.length > 0 && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">{t('saved_addresses')}</label>
                   <div className="space-y-2">
                     {userAddresses.filter((a) => a.user_id === user?.id).map((addr) => (
                       <button
@@ -516,7 +515,6 @@ const CheckoutPage = () => {
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">{t('or_edit_below')}</p>
                 </div>
               )}
               <div className="grid md:grid-cols-2 gap-4">

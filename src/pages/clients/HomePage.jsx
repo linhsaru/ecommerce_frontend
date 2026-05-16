@@ -72,7 +72,6 @@ const HomePage = () => {
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [dealProducts, setDealProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
   const [categorySections, setCategorySections] = useState([]);
 
@@ -126,17 +125,6 @@ const HomePage = () => {
           .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
           .slice(0, 4);
         setFeaturedProducts(topRated.map((p) => mapApiProductToCardViewModel(p)));
-
-        // Sort by biggest discount difference
-        const bestDeals = [...res.items]
-          .filter(p => p.discountedPrice != null && p.originalPrice > p.discountedPrice)
-          .sort((a, b) => {
-            const diffA = a.originalPrice - a.discountedPrice;
-            const diffB = b.originalPrice - b.discountedPrice;
-            return diffB - diffA;
-          })
-          .slice(0, 4);
-        setDealProducts(bestDeals.map((p) => mapApiProductToCardViewModel(p)));
 
         // Use newest products for new arrivals
         const newest = [...res.items]
@@ -307,26 +295,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Deals */}
-      {dealProducts.length > 0 && (
-        <section className="section bg-white">
-          <div className="container-custom">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <span className="badge-danger mb-2 inline-flex">{t('sale')}</span>
-                <h2 className="text-display-sm text-slate-900 mb-2">{t('deals_and_offers')}</h2>
-                <p className="text-body-md text-slate-500">{t('save_on_components')}</p>
-              </div>
-              <Link to="/products" className="btn-secondary hidden md:flex">{t('all_deals')}</Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {dealProducts.slice(0, 4).map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+
 
       {/* New Arrivals */}
       {newArrivals.length > 0 && (

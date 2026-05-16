@@ -40,6 +40,23 @@ const normalizeText = (value) =>
         .replace(/[^a-z0-9]+/g, ' ')
         .trim();
 
+/** Biến thể dùng cho giỏ hàng / API (đồng bộ với ProductCard + cartStore). */
+const resolveProductVariantId = (product) => {
+    if (!product) return null;
+    const fromTop =
+        product.primaryVariantId ??
+        product.variantId ??
+        product.primary_variant_id ??
+        product.variant_id;
+    if (fromTop) return fromTop;
+    const list = product.variants ?? product.productVariants ?? product.ProductVariants;
+    if (Array.isArray(list) && list.length > 0) {
+        const v = list[0];
+        return v?.id ?? v?.variantId ?? null;
+    }
+    return null;
+};
+
 const mapComponentsToRelatedCategories = (components, apiCategories) =>
     components.map((component) => {
         const related = apiCategories.filter((cat) => {
@@ -196,23 +213,37 @@ const BuildPCPage = () => {
         setToastConfig({ isVisible: true, message, status });
     };
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         const items = Object.values(selectedItems);
         if (items.length === 0) {
             showToast(`${t('please_select_at_least_one_component')}`, 'warning');
             return;
         }
-        items.forEach(item => addToCart(item, item.quantity));
+        const missing = items.filter((item) => !item.variantId);
+        if (missing.length > 0) {
+            showToast(t('build_cart_missing_variant'), 'error');
+            return;
+        }
+        for (const item of items) {
+            await addToCart(item, item.quantity);
+        }
         showToast(`${t('added_to_cart_successfully')}`, 'success');
     };
 
-    const handleBuyNow = () => {
+    const handleBuyNow = async () => {
         const items = Object.values(selectedItems);
         if (items.length === 0) {
             showToast(`${t('please_select_at_least_one_component')}`, 'warning');
             return;
         }
-        items.forEach(item => addToCart(item, item.quantity));
+        const missing = items.filter((item) => !item.variantId);
+        if (missing.length > 0) {
+            showToast(t('build_cart_missing_variant'), 'error');
+            return;
+        }
+        for (const item of items) {
+            await addToCart(item, item.quantity);
+        }
         navigate('/checkout');
     };
 
@@ -243,8 +274,16 @@ const BuildPCPage = () => {
 
     const handleSelectProduct = (product) => {
         if (!activeCategory) return;
+        const variantId = resolveProductVariantId(product);
+        if (!variantId) {
+            showToast(t('build_product_no_variant'), 'error');
+            return;
+        }
         const mappedProduct = {
             id: product.id,
+            variantId,
+            slug: product.slug,
+            thumbnailUrl: product.thumbnailUrl,
             name: product.name,
             price: product.discountedPrice ?? product.originalPrice ?? 0,
             quantity: 1,
@@ -293,12 +332,14 @@ const BuildPCPage = () => {
     };
 
     const mapAiPartToSelectedItem = (part, defaultName) => {
-        const productId = part?.productId || part?.id;
-        if (!productId) return null;
+        if (!part) return null;
+        const variantId = part.variantId ?? part.id;
+        const productId = part.productId ?? null;
+        if (!variantId || !productId) return null;
 
         return {
             id: productId,
-            variantId: part?.id || null,
+            variantId,
             name: part?.productName || defaultName,
             price: Number(part?.variantPrice ?? part?.price ?? 0),
             quantity: 1,

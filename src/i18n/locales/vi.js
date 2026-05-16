@@ -219,6 +219,8 @@ export default {
   build_modal_empty_desc: 'Không có sản phẩm trong danh mục liên quan hoặc thử từ khóa khác.',
   build_modal_brand: 'Hãng:',
   build_modal_add: 'Thêm',
+  build_cart_missing_variant: 'Linh kiện thiếu mã biến thể hợp lệ, không thể thêm vào giỏ.',
+  build_product_no_variant: 'Sản phẩm không có biến thể để thêm giỏ.',
 
   // Landing Page
   landing_welcome: 'Chào mừng đến với hệ thống của chúng tôi',

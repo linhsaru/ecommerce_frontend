@@ -1,188 +1,206 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Package, Plus, Search, Filter, Download, RotateCw } from 'lucide-react';
+import { Package, Plus, Search, Download, RotateCw } from 'lucide-react';
+import Pagination from '../../../components/data-displays/Pagination/Pagination';
 import { apiService } from '../../../services';
 import InventoryStockModal from './components/InventoryStockModal';
 
+/** Lấy payload T trong ApiResponse (ASP.NET JSON camelCase). */
+const apiBody = (axiosRes) => axiosRes?.data?.data ?? axiosRes?.data;
+
 const InventoryManagementPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchDebounced, setSearchDebounced] = useState('');
+  const [warehouseFilter, setWarehouseFilter] = useState('');
   const [inventories, setInventories] = useState([]);
+  const [warehouseSummaries, setWarehouseSummaries] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockModalSelection, setStockModalSelection] = useState({ warehouseId: '', variantId: '' });
 
-  const fetchInventories = async () => {
-    setIsLoading(true);
-    setError('');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const reloadList = () => setRefreshKey((k) => k + 1);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(searchInput.trim()), 420);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchDebounced]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const axiosRes = await apiService.get('/inventories/warehouse-summaries');
+        const list = apiBody(axiosRes);
+        if (!cancelled) setWarehouseSummaries(Array.isArray(list) ? list : []);
+      } catch {
+        if (!cancelled) setWarehouseSummaries([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const params = {
+          page,
+          pageSize,
+          search: searchDebounced || undefined,
+          warehouseId: warehouseFilter || undefined,
+        };
+        const axiosRes = await apiService.get('/inventories', { params });
+        const paged = apiBody(axiosRes);
+        const list = Array.isArray(paged?.items) ? paged.items : [];
+        if (!cancelled) {
+          setInventories(list);
+          setTotalItems(Number(paged?.totalItems ?? 0));
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e?.response?.data?.message || e?.message || 'Không thể tải danh sách tồn kho.');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, pageSize, searchDebounced, warehouseFilter, refreshKey]);
+
+  const reloadSummaries = async () => {
     try {
-      const { data: response } = await apiService.get('/inventories');
-      const items = response?.data?.items ?? response?.items ?? [];
-      setInventories(Array.isArray(items) ? items : []);
-    } catch (e) {
-      setError(e?.response?.data?.message || 'Không thể tải danh sách tồn kho.');
-    } finally {
-      setIsLoading(false);
+      const axiosRes = await apiService.get('/inventories/warehouse-summaries');
+      const list = apiBody(axiosRes);
+      setWarehouseSummaries(Array.isArray(list) ? list : []);
+    } catch {
+      /* ignore */
     }
   };
 
-  useEffect(() => {
-    fetchInventories().catch(() => { });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const filteredInventories = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return inventories;
-
-    return inventories.filter((inv) => {
-      const fields = [inv?.warehouseName, inv?.variantSku, inv?.variantId, inv?.warehouseId];
-      return fields.some((f) => (f ? String(f).toLowerCase().includes(keyword) : false));
-    });
-  }, [inventories, searchTerm]);
-
-  const warehouseSummary = useMemo(() => {
-    const map = new Map();
-    for (const inv of inventories) {
-      const key = inv?.warehouseId || inv?.warehouseName || 'unknown';
-      const name = inv?.warehouseName || 'Unknown warehouse';
-
-      if (!map.has(key)) {
-        map.set(key, { warehouseId: inv?.warehouseId, warehouseName: name, quantity: 0, reserved: 0 });
-      }
-      const current = map.get(key);
-      current.quantity += Number(inv?.quantity ?? 0);
-      current.reserved += Number(inv?.reserved ?? 0);
-    }
-
-    return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity);
-  }, [inventories]);
+  const topWarehouses = useMemo(
+    () =>
+      [...warehouseSummaries]
+        .sort((a, b) => Number(b.totalQuantity ?? 0) - Number(a.totalQuantity ?? 0))
+        .slice(0, 6),
+    [warehouseSummaries]
+  );
 
   const handleOpenStockModal = (inv = null) => {
     setStockModalSelection({
-      warehouseId: inv?.warehouseId ?? '',
-      variantId: inv?.variantId ?? '',
+      warehouseId: inv?.warehouseId != null ? String(inv.warehouseId) : '',
+      variantId: inv?.variantId != null ? String(inv.variantId) : '',
     });
     setIsStockModalOpen(true);
   };
 
-  const handleExportExcel = () => {
-    const header = ['Kho', 'SKU', 'Biến thể', 'Tồn', 'Giữ chỗ', 'Có thể bán', 'Cập nhật'];
-
-    const rows = filteredInventories.map((inv) => {
-      const quantity = Number(inv?.quantity ?? 0);
-      const reserved = Number(inv?.reserved ?? 0);
-      const available = quantity - reserved;
-
-      const updatedAt = inv?.updatedAt ? new Date(inv.updatedAt).toLocaleDateString('vi-VN') : '—';
-
-      return [
-        inv?.warehouseName || '—',
-        inv?.variantSku || '—',
-        inv?.variantId || '—',
-        quantity,
-        reserved,
-        available,
-        updatedAt,
-      ];
-    });
-
+  const handleExportCsv = async () => {
     const escapeCell = (value) => {
       const str = value === null || value === undefined ? '' : String(value);
-      // CSV escape: wrap in quotes, double any quotes inside
       return `"${str.replaceAll('"', '""')}"`;
     };
 
-    const csvContent = [
-      header.map(escapeCell).join(','),
-      ...rows.map((r) => r.map(escapeCell).join(',')),
-    ].join('\n');
+    try {
+      const header = ['Kho', 'Sản phẩm', 'Tồn', 'Cập nhật'];
+      const rows = [];
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+      let p = 1;
+      let total = Infinity;
+      const batchSize = 100;
+      const maxPages = 200;
 
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ton-kho_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      while (p <= maxPages && rows.length < total) {
+        const params = {
+          page: p,
+          pageSize: batchSize,
+          search: searchDebounced || undefined,
+          warehouseId: warehouseFilter || undefined,
+        };
+        const axiosRes = await apiService.get('/inventories', { params });
+        const pageData = apiBody(axiosRes);
+        const list = Array.isArray(pageData?.items) ? pageData.items : [];
+        total = Number(pageData?.totalItems ?? list.length);
+
+        for (const inv of list) {
+          const quantity = Number(inv?.quantity ?? 0);
+          const updatedAt = inv?.updatedAt ? new Date(inv.updatedAt).toLocaleDateString('vi-VN') : '—';
+
+          rows.push([inv?.warehouseName || '—', inv?.productName || '—', quantity, updatedAt]);
+        }
+
+        if (list.length === 0 || rows.length >= total) break;
+        p += 1;
+      }
+
+      const csvContent = [header.map(escapeCell).join(','), ...rows.map((r) => r.map(escapeCell).join(','))].join('\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ton-kho_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Không xuất được CSV. Vui lòng thử lại.');
+    }
   };
+
+  const rangeLabel = useMemo(() => {
+    if (totalItems <= 0) return 'Không có bản ghi';
+    const start = (page - 1) * pageSize + 1;
+    const end = Math.min(page * pageSize, totalItems);
+    return `${start}–${end} trong ${totalItems}`;
+  }, [page, pageSize, totalItems]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Quản lý tồn kho</h2>
-          <p className="text-sm text-slate-500 mt-1">Kiểm soát và theo dõi số lượng tồn kho của các sản phẩm trên hệ thống.</p>
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-4 lg:items-center">
+        <div className="max-w-xl">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Quản lý tồn kho</h2>
         </div>
         <button
+          type="button"
           onClick={() => handleOpenStockModal()}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-sm shadow-indigo-200"
+          className="shrink-0 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all shadow-md shadow-indigo-500/20"
         >
           <Plus className="w-4 h-4" />
-          <span>Nhập/Xuất kho</span>
+          Điều chỉnh tồn
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full md:flex-1 md:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm sản phẩm trong kho..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-          />
-        </div>
-
-        <div className="flex items-center justify-end gap-3 w-full md:w-auto">
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm"
-          >
-            <Download className="w-4 h-4" />
-            <span>Xuất Excel</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => fetchInventories().catch(() => { })}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm"
-          >
-            <RotateCw className="w-4 h-4" />
-            <span>Làm mới</span>
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-sm">
-          {error}
-        </div>
-      )}
-
-      {warehouseSummary.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {warehouseSummary.slice(0, 3).map((w) => {
-            const available = w.quantity - w.reserved;
+      {topWarehouses.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {topWarehouses.map((w) => {
+            const q = Number(w.totalQuantity ?? 0);
             return (
               <div
-                key={w.warehouseId || w.warehouseName}
-                className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col gap-2"
+                key={String(w.warehouseId)}
+                className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm"
               >
-                <p className="text-sm font-semibold text-slate-700 truncate">{w.warehouseName}</p>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-slate-500">Tổng tồn</p>
-                    <p className="text-lg font-bold text-slate-800">{w.quantity}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Có thể bán</p>
-                    <p className="text-lg font-bold text-emerald-600">{available}</p>
-                  </div>
+                <p className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Kho</p>
+                <p className="text-base font-bold text-slate-900 truncate mt-0.5">{w.warehouseName}</p>
+                <div className="mt-4">
+                  <p className="text-[11px] text-slate-500">Tổng tồn</p>
+                  <p className="text-2xl font-bold text-slate-900 tabular-nums">{q}</p>
                 </div>
               </div>
             );
@@ -190,63 +208,121 @@ const InventoryManagementPage = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col xl:flex-row gap-3 xl:items-end xl:justify-between">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Tìm theo tên sản phẩm hoặc tên kho..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+              />
+            </div>
+            <select
+              value={warehouseFilter}
+              onChange={(e) => {
+                setWarehouseFilter(e.target.value);
+                setPage(1);
+              }}
+              className="w-full sm:w-56 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+            >
+              <option value="">Tất cả kho</option>
+              {warehouseSummaries.map((w) => (
+                <option key={String(w.warehouseId)} value={w.warehouseId}>
+                  {w.warehouseName}
+                </option>
+              ))}
+            </select>
+            <select
+              value={String(pageSize)}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="w-full sm:w-40 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+            >
+              {[10, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} / trang
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => reloadList()}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 shadow-sm"
+            >
+              <RotateCw className="w-4 h-4" />
+              Làm mới
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 shadow-sm"
+            >
+              <Download className="w-4 h-4" />
+              Xuất CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="p-4 bg-rose-50 text-rose-800 border border-rose-100 rounded-xl text-sm">{error}</div>}
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center text-slate-500 text-sm">Đang tải danh sách tồn kho...</div>
-        ) : filteredInventories.length === 0 ? (
-          <div className="p-12 flex flex-col items-center justify-center text-center">
+          <div className="p-14 text-center text-slate-500 text-sm">Đang tải dữ liệu tồn kho...</div>
+        ) : inventories.length === 0 ? (
+          <div className="p-14 flex flex-col items-center text-center">
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <Package className="w-8 h-8 text-slate-500" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Chưa có dữ liệu tồn kho</h3>
-            <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Dữ liệu tồn kho sẽ được hiển thị tại đây khi bạn nhập hàng vào kho.
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Không có bản ghi</h3>
+            <p className="text-slate-500 text-sm max-w-md">
+              Thử đổi bộ lọc kho hoặc từ khóa. Dòng chỉ hiện khi biến thể và sản phẩm chưa bị xóa mềm.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-700">Kho</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-700">SKU</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-700">Biến thể</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-700">Tồn / Giữ chỗ</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-700">Cập nhật</th>
+              <thead>
+                <tr className="bg-slate-50/90 border-y border-slate-200">
+                  <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Kho</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Sản phẩm</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Tồn kho</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Cập nhật</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredInventories.map((inv) => {
+                {inventories.map((inv) => {
                   const quantity = Number(inv?.quantity ?? 0);
-                  const reserved = Number(inv?.reserved ?? 0);
-                  const available = quantity - reserved;
                   return (
                     <tr
-                      key={`${inv?.warehouseId || ''}-${inv?.variantId || ''}`}
+                      key={`${inv?.warehouseId ?? ''}-${inv?.variantId ?? ''}`}
                       onClick={() => handleOpenStockModal(inv)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') handleOpenStockModal(inv);
                       }}
-                      className="hover:bg-slate-50/60 transition-colors cursor-pointer"
+                      className="hover:bg-indigo-50/40 cursor-pointer transition-colors group"
                     >
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-slate-800">{inv?.warehouseName || '—'}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{inv?.warehouseId || ''}</p>
+                      <td className="px-5 py-4 align-top">
+                        <p className="font-semibold text-slate-900">{inv?.warehouseName || '—'}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-slate-700">{inv?.variantSku || '—'}</p>
+                      <td className="px-5 py-4 align-top">
+                        <p className="font-semibold text-slate-900 group-hover:text-indigo-800">{inv?.productName || '—'}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="text-slate-600">{inv?.variantId || '—'}</p>
+                      <td className="px-5 py-4 align-top whitespace-nowrap">
+                        <p className="font-semibold text-slate-900 tabular-nums">{quantity}</p>
                       </td>
-                      <td className="px-6 py-4 text-slate-700">
-                        <p>Tồn: {quantity}</p>
-                        <p className="text-xs text-slate-500">Giữ chỗ: {reserved} | Có thể bán: {available}</p>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {inv?.updatedAt ? new Date(inv.updatedAt).toLocaleDateString('vi-VN') : '—'}
+                      <td className="px-5 py-4 align-top text-slate-600 whitespace-nowrap">
+                        {inv?.updatedAt ? new Date(inv.updatedAt).toLocaleString('vi-VN') : '—'}
                       </td>
                     </tr>
                   );
@@ -255,14 +331,25 @@ const InventoryManagementPage = () => {
             </table>
           </div>
         )}
+
+        {!isLoading && totalItems > 0 && (
+          <div className="px-5 py-4 flex flex-col gap-3 border-t border-slate-100 bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <span className="text-sm text-slate-600 whitespace-nowrap shrink-0 tabular-nums">{rangeLabel}</span>
+            <div className="min-w-0 flex justify-end overflow-x-auto sm:overflow-visible">
+              <Pagination page={page} count={totalItems} pageSize={pageSize} onPageChange={(p) => setPage(p)} />
+            </div>
+          </div>
+        )}
       </div>
 
       <InventoryStockModal
         isOpen={isStockModalOpen}
         onClose={() => setIsStockModalOpen(false)}
-        inventories={inventories}
         initialSelection={stockModalSelection}
-        onSuccess={() => fetchInventories().catch(() => { })}
+        onSuccess={() => {
+          reloadSummaries();
+          reloadList();
+        }}
       />
     </div>
   );
